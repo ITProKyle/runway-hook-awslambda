@@ -1,6 +1,4 @@
-# generic-template
-
-[![Documentation Status](https://readthedocs.org/projects/generic-template/badge/?version=stable)](https://generic-template.readthedocs.io/en/stable/)
+# runway-hook-awslambda
 
 A generic template for GitHub repos.
 

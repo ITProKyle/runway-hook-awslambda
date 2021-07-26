@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "generic-template"
+name = "awslambda"
 version = "0.0.0"
-description = "Generic Python project template."
+description = "Runway hook for AWS Lambda."
 authors = ["Kyle Finley <kyle@finley.sh>"]
 license = "Apache-2.0"
 
