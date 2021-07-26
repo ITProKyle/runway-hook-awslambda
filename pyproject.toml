@@ -8,6 +8,8 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.8"
 
+runway = "^2.3.0"
+
 [tool.poetry.dev-dependencies]
 black = "21.7b0"
 coverage = "^5.5"
