@@ -1,0 +1,52 @@
+{
+    "[python]": {
+        "editor.rulers": [
+            79,
+            100,
+            120
+        ],
+        "editor.tabSize": 4
+    },
+    "autoDocstring.docstringFormat": "google",
+    "editor.insertSpaces": true,
+    "editor.rulers": [
+        79,
+        100,
+        120
+    ],
+    "editor.tabSize": 2,
+    "files.insertFinalNewline": true,
+    "python.formatting.provider": "black",
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": false,
+    "python.linting.pylintArgs": [
+        "--rcfile=pyproject.toml"
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.pythonPath": ".venv/bin/python",
+    "restructuredtext.confPath": "${workspaceFolder}/docs/source",
+    "restructuredtext.linter.extraArgs": [
+        "--ignore D001"
+    ],
+    "yaml.customTags": [
+        "!Equals sequence",
+        "!FindInMap sequence",
+        "!GetAtt",
+        "!GetAZs",
+        "!ImportValue",
+        "!Join sequence",
+        "!Ref",
+        "!Select sequence",
+        "!Split sequence",
+        "!Sub",
+        "!Not sequence",
+        "!Select sequence",
+        "!Or sequence",
+        "!And sequence",
+        "!If sequence",
+        "!EachMemberIn sequence",
+        "!ValueOfAll sequence",
+        "!RefAll",
+        "!Condition"
+    ]
+}

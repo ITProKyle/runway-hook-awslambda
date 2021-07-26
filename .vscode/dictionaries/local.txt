@@ -1,0 +1,15 @@
+bdist
+docstrings
+fgrep
+howto
+kwarg
+labelmaker
+noqa
+printf
+pyright
+repos
+subclassing
+ungrouped
+venv
+virtualenvs
+xargs
