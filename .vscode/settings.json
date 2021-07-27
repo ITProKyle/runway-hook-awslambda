@@ -5,7 +5,8 @@
             100,
             120
         ],
-        "editor.tabSize": 4
+        "editor.tabSize": 4,
+        "editor.formatOnSave": true
     },
     "autoDocstring.docstringFormat": "google",
     "editor.insertSpaces": true,
