@@ -1,5 +1,4 @@
 {
-    "version": "0.1",
     "dictionaries": [
         "bash",
         "local",
@@ -53,10 +52,12 @@
     ],
     "language": "en",
     "maxNumberOfProblems": 100,
+    "version": "0.1",
     "words": [
         "awslambda",
         "fstring",
         "igittigitt",
-        "tomli"
+        "tomli",
+        "rglob"
     ]
 }
