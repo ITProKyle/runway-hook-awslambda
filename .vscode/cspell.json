@@ -56,9 +56,13 @@
     "words": [
         "awslambda",
         "cfngin",
+        "editorconfig",
         "fstring",
         "igittigitt",
+        "rglob",
         "tomli",
-        "rglob"
+        "pyproject",
+        "pyrightconfig",
+        "rcfile"
     ]
 }
