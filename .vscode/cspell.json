@@ -57,12 +57,14 @@
         "awslambda",
         "cfngin",
         "editorconfig",
+        "fspath",
         "fstring",
         "igittigitt",
-        "rglob",
-        "tomli",
         "pyproject",
         "pyrightconfig",
-        "rcfile"
+        "rcfile",
+        "rglob",
+        "tomli",
+        "turediv"
     ]
 }

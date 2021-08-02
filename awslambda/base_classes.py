@@ -5,11 +5,13 @@ import logging
 import shlex
 import shutil
 import subprocess
+import zipfile
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Generic,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -17,22 +19,26 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from runway.cfngin.hooks.base import Hook
 from runway.compat import cached_property
+from typing_extensions import Literal
 
-from .constants import LOGGER_PREFIX
+from .constants import BASE_WORK_DIR
 from .models.args import AwsLambdaHookArgs
 from .source_code import SourceCode
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import igittigitt
+    from runway._logging import RunwayLogger
     from runway.cfngin.providers.aws.default import Provider
     from runway.context import CfnginContext
 
-LOGGER = logging.getLogger(f"{LOGGER_PREFIX}")
+LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
 _AwsLambdaHookArgsTypeVar = TypeVar(
     "_AwsLambdaHookArgsTypeVar", bound=AwsLambdaHookArgs, covariant=True
@@ -63,49 +69,91 @@ class DependencyManager:
         """Get executable version."""
         raise NotImplementedError
 
-    def _run_command(self, command: Union[List[str], str]) -> str:
+    @overload
+    def _run_command(
+        self,
+        command: Union[Sequence[str], str],
+        *,
+        suppress_output: Literal[True] = ...,
+    ) -> str:
+        ...
+
+    @overload
+    def _run_command(
+        self,
+        command: Union[Sequence[str], str],
+        *,
+        suppress_output: Literal[False] = ...,
+    ) -> None:
+        ...
+
+    def _run_command(
+        self, command: Union[Sequence[str], str], *, suppress_output: bool = True
+    ) -> Optional[str]:
         """Run command.
 
         Args:
             command: Command to pass to shell to execute.
+            suppress_output: If ``True``, the output of the subprocess written
+                to ``sys.stdout`` and ``sys.stderr`` will be captured and
+                returned as a string instead of being being written directly.
 
         """
-        return subprocess.check_output(
-            command,
+        cmd_str = command if isinstance(command, str) else shlex.join(command)
+        LOGGER.verbose("running command: %s", cmd_str)
+        if suppress_output:
+            return subprocess.check_output(
+                cmd_str,
+                cwd=self.source_code.root_directory,
+                env=self.ctx.env.vars,
+                shell=True,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        subprocess.check_call(
+            cmd_str,
             cwd=self.source_code.root_directory,
             env=self.ctx.env.vars,
             shell=True,
-            stderr=subprocess.PIPE,
-            text=True,
         )
+        return None
 
     @classmethod
     def generate_command(
         cls,
-        command: str,
+        command: Union[List[str], str],
         **kwargs: Optional[Union[bool, Sequence[str], str]],
     ) -> List[str]:
         """Generate command to be executed and log it.
 
         Args:
-            command: Poetry command to run.
-            args: Additional args to pass to poetry.
+            command: Command to run.
+            args: Additional args to pass to the command.
 
         Returns:
             The full command to be passed into a subprocess.
 
         """
-        cmd = [cls.EXECUTABLE, command]
-        for k, v in kwargs.items():
-            if isinstance(v, str):
-                cmd.extend([cls.convert_to_cli_arg(k), v])
-            elif isinstance(v, (list, set, tuple)):
-                for i in cast(Sequence[str], v):
-                    cmd.extend([cls.convert_to_cli_arg(k), i])
-            elif isinstance(v, bool) and v:
-                cmd.append(cls.convert_to_cli_arg(k))
+        cmd = [cls.EXECUTABLE, *(command if isinstance(command, list) else [command])]
+        cmd.extend(cls._generate_command_handle_kwargs(**kwargs))
         LOGGER.debug("generated command: %s", shlex.join(cmd))
         return cmd
+
+    @classmethod
+    def _generate_command_handle_kwargs(
+        cls, **kwargs: Optional[Union[bool, Sequence[str], str]]
+    ) -> List[str]:
+        """Handle kwargs passed to generate_command."""
+        result: List[str] = []
+        for k, v in kwargs.items():
+            if isinstance(v, str):
+                result.extend([cls.convert_to_cli_arg(k), v])
+            elif isinstance(v, (list, set, tuple)):
+                for i in cast(Sequence[str], v):
+                    result.extend([cls.convert_to_cli_arg(k), i])
+            elif isinstance(v, bool) and v:
+                result.append(cls.convert_to_cli_arg(k))
+        return result
 
     @classmethod
     def found_in_path(cls) -> bool:
@@ -120,12 +168,7 @@ class DependencyManager:
         return f"{prefix}{arg_name.replace('_', '-')}"
 
 
-_DependencyManagerTypeVar = TypeVar(
-    "_DependencyManagerTypeVar", bound=DependencyManager, covariant=True
-)
-
-
-class Project(Generic[_AwsLambdaHookArgsTypeVar, _DependencyManagerTypeVar]):
+class Project(Generic[_AwsLambdaHookArgsTypeVar]):
     """Project continaing source code for an AWS Lambda Function."""
 
     args: _AwsLambdaHookArgsTypeVar
@@ -143,9 +186,20 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar, _DependencyManagerTypeVar]):
         self.ctx = context
 
     @cached_property
-    def dependency_manager(self) -> _DependencyManagerTypeVar:
-        """Determine and return the dependency manager to use."""
-        raise NotImplementedError
+    def build_directory(self) -> Path:
+        """Directory being used to build deployment package."""
+        result = (
+            BASE_WORK_DIR / f"{self.args.function_name}.{self.source_code.md5_hash}"
+        )
+        result.mkdir(exist_ok=True, parents=True)
+        return result
+
+    @cached_property
+    def dependency_directory(self) -> Path:
+        """Directory use as the target of ``pip install --target``."""
+        result = self.build_directory / "dependencies"
+        result.mkdir(exist_ok=True, parents=True)
+        return result
 
     @cached_property
     def source_code(self) -> SourceCode:
@@ -160,20 +214,82 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar, _DependencyManagerTypeVar]):
             source_code.add_filter_rule(rule)
         return source_code
 
-    @classmethod
-    def is_project(cls, source_code_path: Path) -> bool:
-        """Determine if source code is a poetry project.
+
+_ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
+
+
+class DeploymentPackage(Generic[_ProjectTypeVar]):
+    """AWS Lambda Deployment Package.
+
+    Attributes:
+        gitignore_filter: Filter to use when zipping dependencies.
+            If file/folder matches the filter, it should be ignored.
+        project: Project that is being built into a deployment package.
+
+    """
+
+    gitignore_filter: Optional[igittigitt.IgnoreParser]
+    project: _ProjectTypeVar
+
+    def __init__(
+        self,
+        project: _ProjectTypeVar,
+        *,
+        gitignore_filter: Optional[igittigitt.IgnoreParser] = None,
+    ) -> None:
+        """Instantiate class.
 
         Args:
-            source_code_path: Path to the source code of the project.
+            project: Project that is being built into a deployment package.
+            gitignore_filter: Filter to use when zipping dependencies.
+                If file/folder matches the filter, it should be ignored.
 
         """
-        raise NotImplementedError
+        self.gitignore_filter = gitignore_filter
+        self.project = project
 
+    @cached_property
+    def archive_file(self) -> Path:
+        """Path to archive file."""
+        return (
+            self.project.build_directory
+            / f"{self.project.args.function_name}-{self.project.source_code.md5_hash}.zip"
+        )
 
-_ProjectTypeVar = TypeVar(
-    "_ProjectTypeVar", bound=Project[AwsLambdaHookArgs, DependencyManager]
-)
+    def build(self) -> Path:
+        """Build the deployment package."""
+        with zipfile.ZipFile(
+            self.archive_file, "w", zipfile.ZIP_DEFLATED
+        ) as archive_file:
+            self._build_zip_dependencies(archive_file)
+
+            for file_info in archive_file.filelist:
+                LOGGER.info(file_info)
+        return self.archive_file
+
+    def _build_zip_dependencies(self, archive_file: zipfile.ZipFile) -> None:
+        """Handle zipping dependencies.
+
+        Args:
+            archive_file: Archive file that is currently open and ready to be
+                written to.
+
+        """
+        for dep in self.iterate_dependency_directory():
+            archive_file.write(dep, dep.relative_to(self.project.dependency_directory))
+
+    def iterate_dependency_directory(self) -> Iterator[Path]:
+        """Iterate over the contents of the dependency directory.
+
+        If ``gitignore_filter`` is set, it will be used to exclude files.
+
+        """
+        for child in self.project.dependency_directory.rglob("*"):
+            if child.is_dir():
+                continue  # ignore directories
+            if self.gitignore_filter and self.gitignore_filter.match(child):
+                continue  # ignore files that match the filter
+            yield child
 
 
 class AwsLambdaHook(Generic[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar], Hook):
