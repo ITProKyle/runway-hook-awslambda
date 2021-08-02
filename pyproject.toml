@@ -110,6 +110,9 @@ allow-wildcard-with-all = "no"
 logging-format-style = "old"
 
 [tool.pylint.master]
+extension-pkg-whitelist = [
+  "pydantic",  # https://github.com/samuelcolvin/pydantic/issues/992#issuecomment-553545180
+]
 jobs = 0
 
 [tool.pylint.message_control]
