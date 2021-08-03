@@ -8,7 +8,7 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.8"
 
-runway = "^2.3.0"
+runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
 tomli = "^1.1.0"
 igittigitt = "^2.0.4"
 
