@@ -1,33 +1,41 @@
 """Base classes."""
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
+import mimetypes
 import shlex
 import shutil
 import subprocess
 import zipfile
+from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Dict,
     Generic,
     Iterator,
     List,
     Optional,
     Sequence,
-    Type,
     TypeVar,
     Union,
     cast,
     overload,
 )
+from urllib.parse import urlencode
 
-from runway.cfngin.hooks.base import Hook
+from runway.cfngin.hooks.protocols import CfnginHookProtocol
 from runway.compat import cached_property
+from runway.core.providers.aws.s3 import Bucket
 from typing_extensions import Literal
 
 from .constants import BASE_WORK_DIR
+from .exceptions import BucketAccessDenied, BucketNotFound
 from .models.args import AwsLambdaHookArgs
+from .models.responses import AwsLambdaHookDeployResponse
 from .source_code import SourceCode
 
 if TYPE_CHECKING:
@@ -35,8 +43,8 @@ if TYPE_CHECKING:
 
     import igittigitt
     from runway._logging import RunwayLogger
-    from runway.cfngin.providers.aws.default import Provider
     from runway.context import CfnginContext
+    from runway.utils import BaseModel
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
@@ -218,34 +226,60 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
 
 
+# TODO move to runway.utils or similar
+def calculate_lambda_code_sha256(file_path: Path) -> str:
+    """Calculate the CodeSha256 of a deployment package.
+
+    Returns:
+        Value to pass to CloudFormation ``AWS::Lambda::Version.CodeSha256``.
+
+    """
+    file_hash = hashlib.sha256()
+    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
+    with open(file_path, "rb") as buf:
+        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
+        chunk = buf.read(read_size)  # seed chunk with initial value
+        while chunk:
+            file_hash.update(chunk)
+            chunk = buf.read(read_size)  # read in new chunk
+    return base64.b64encode(file_hash.digest()).decode()
+
+
+# TODO move to runway.utils or similar
+def calculate_s3_content_md5(file_path: Path) -> str:
+    """Calculate the ContentMD5 value for a file being uploaded to AWS S3.
+
+    Value will be the base64 encoded.
+
+    """
+    file_hash = hashlib.md5()
+    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
+    with open(file_path, "rb") as buf:
+        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
+        chunk = buf.read(read_size)  # seed chunk with initial value
+        while chunk:
+            file_hash.update(chunk)
+            chunk = buf.read(read_size)  # read in new chunk
+    return base64.b64encode(file_hash.digest()).decode()
+
+
 class DeploymentPackage(Generic[_ProjectTypeVar]):
     """AWS Lambda Deployment Package.
 
     Attributes:
-        gitignore_filter: Filter to use when zipping dependencies.
-            If file/folder matches the filter, it should be ignored.
         project: Project that is being built into a deployment package.
 
     """
 
-    gitignore_filter: Optional[igittigitt.IgnoreParser]
     project: _ProjectTypeVar
 
-    def __init__(
-        self,
-        project: _ProjectTypeVar,
-        *,
-        gitignore_filter: Optional[igittigitt.IgnoreParser] = None,
-    ) -> None:
+    def __init__(self, project: _ProjectTypeVar) -> None:
         """Instantiate class.
 
         Args:
             project: Project that is being built into a deployment package.
-            gitignore_filter: Filter to use when zipping dependencies.
-                If file/folder matches the filter, it should be ignored.
 
         """
-        self.gitignore_filter = gitignore_filter
         self.project = project
 
     @cached_property
@@ -253,8 +287,65 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         """Path to archive file."""
         return (
             self.project.build_directory
-            / f"{self.project.args.function_name}-{self.project.source_code.md5_hash}.zip"
+            / f"{self.project.args.function_name}.{self.project.source_code.md5_hash}.zip"
         )
+
+    @cached_property
+    def bucket(self) -> Bucket:
+        """AWS S3 bucket where deployment package will be uploaded."""
+        bucket = Bucket(self.project.ctx, self.project.args.bucket_name)
+        if bucket.forbidden:
+            raise BucketAccessDenied(bucket)
+        if bucket.not_found:
+            raise BucketNotFound(bucket)
+        return bucket
+
+    @cached_property
+    def code_sha256(self) -> str:
+        """SHA256 of the archive file.
+
+        Returns:
+            Value to pass to CloudFormation ``AWS::Lambda::Version.CodeSha256``.
+
+        Raises:
+            FileNotFoundError: Property accessed before archive file has been built.
+
+        """
+        return calculate_lambda_code_sha256(self.archive_file)
+
+    @cached_property
+    def gitignore_filter(  # pylint: disable=no-self-use
+        self,
+    ) -> Optional[igittigitt.IgnoreParser]:
+        """Filter to use when zipping dependencies.
+
+        This should be overridden by subclasses if a filter should be used.
+
+        """
+        return None
+
+    @cached_property
+    def md5_checksum(self) -> str:
+        """MD5 of the archive file.
+
+        Returns:
+            Value to pass as ContentMD5 when uploading to AWS S3.
+
+        Raises:
+            FileNotFoundError: Property accessed before archive file has been built.
+
+        """
+        return calculate_s3_content_md5(self.archive_file)
+
+    @cached_property
+    def object_key(self) -> str:
+        """Key to use when upload object to AWS S3."""
+        prefix = "awslambda/functions"
+        if self.project.args.object_prefix:
+            prefix = (
+                f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
+            )
+        return f"{prefix}/{self.archive_file.name}"
 
     def build(self) -> Path:
         """Build the deployment package."""
@@ -263,9 +354,41 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         ) as archive_file:
             self._build_zip_dependencies(archive_file)
 
-            for file_info in archive_file.filelist:
-                LOGGER.info(file_info)
+            # for file_info in archive_file.filelist:
+            #     LOGGER.info(file_info)
+
+        # clear cached properties so they can recalculate;
+        # handles cached property not being resolved yet
+        with suppress(AttributeError):
+            del self.code_sha256
+        with suppress(AttributeError):
+            del self.md5_checksum
         return self.archive_file
+
+    @overload
+    def build_tag_set(self, *, url_encoded: Literal[True] = ...) -> str:
+        ...
+
+    @overload
+    def build_tag_set(self, *, url_encoded: Literal[False] = ...) -> Dict[str, str]:
+        ...
+
+    def build_tag_set(self, *, url_encoded: bool = True) -> Union[Dict[str, str], str]:
+        """Build tag set to be applied to the S3 object.
+
+        Args:
+            url_encoded: Whether to return a dict or URL encoded query string.
+
+        """
+        metadata = {
+            "runway.cfngin:awslambda.code_sha256": self.code_sha256,
+            "runway.cfngin:awslambda.source_code.hash": self.project.source_code.md5_hash,
+            "runway.cfngin:awslambda.md5_checksum": self.md5_checksum,
+        }
+        tags = {**self.project.ctx.tags, **self.project.args.tags, **metadata}
+        if url_encoded:
+            return urlencode(tags)
+        return tags
 
     def _build_zip_dependencies(self, archive_file: zipfile.ZipFile) -> None:
         """Handle zipping dependencies.
@@ -291,29 +414,98 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
                 continue  # ignore files that match the filter
             yield child
 
-
-class AwsLambdaHook(Generic[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar], Hook):
-    """Base class for AWS Lambda hooks."""
-
-    # TODO make this is ClassVar in runway repo
-    ARGS_PARSER: ClassVar[Type[_AwsLambdaHookArgsTypeVar]]  # type: ignore
-
-    args: AwsLambdaHookArgs
-
-    def __init__(self, context: CfnginContext, provider: Provider, **kwargs: Any):
-        """Instantiate class.
+    def upload(self, *, build: bool = True) -> None:
+        """Upload deployment package.
 
         Args:
-            context: Context object. (passed in by CFNgin)
-            provider: Provider object. (passed in by CFNgin)
+            build: If true, the deployment package will be built before before
+                trying to upload it. If false, it must have already been built.
 
         """
-        super().__init__(context=context, provider=provider, **kwargs)
+        if build:
+            self.build()
+
+        # we don't really need encoding - it can be NoneType so throw it away
+        content_type, _content_encoding = mimetypes.guess_type(self.archive_file)
+
+        LOGGER.info(
+            "uploading deployment package %s...",
+            self.bucket.format_bucket_path_uri(key=self.object_key),
+        )
+
+        self.bucket.client.put_object(
+            Body=self.archive_file.read_bytes(),
+            Bucket=self.project.args.bucket_name,
+            ContentMD5=self.md5_checksum,
+            ContentType=content_type,
+            Key=self.object_key,
+            Tagging=self.build_tag_set(),
+        )
+
+
+class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
+    """Base class for AWS Lambda hooks."""
+
+    args: AwsLambdaHookArgs
+    ctx: CfnginContext
+
+    # pylint: disable=super-init-not-called
+    def __init__(self, context: CfnginContext, **_kwargs: Any) -> None:
+        """Instantiate class.
+
+        This method should be overridden by subclasses.
+        This is required to set the value of the args attribute.
+
+        Args:
+            context: CFNgin context object.
+
+        """
+        self.ctx = context
+
+    @cached_property
+    def deployment_package(self) -> DeploymentPackage[_ProjectTypeVar]:
+        """AWS Lambda deployment package."""
+        raise NotImplementedError
 
     @cached_property
     def project(self) -> _ProjectTypeVar:
         """Project being deployed as an AWS Lambda Function."""
         raise NotImplementedError
+
+    @overload
+    def build_response(self, stage: Literal["deploy"]) -> AwsLambdaHookDeployResponse:
+        ...
+
+    @overload
+    def build_response(self, stage: Literal["destroy"]) -> Optional[BaseModel]:
+        ...
+
+    def build_response(
+        self, stage: Literal["deploy", "destroy"]
+    ) -> Optional[BaseModel]:
+        """Build response object that will be returned by this hook.
+
+        Args:
+            stage: The current stage being executed by the hook.
+
+        """
+        if stage == "deploy":
+            return self._build_response_deploy()
+        if stage == "destroy":
+            return self._build_response_destroy()
+        return None
+
+    def _build_response_deploy(self) -> AwsLambdaHookDeployResponse:
+        """Build response for deploy stage."""
+        return AwsLambdaHookDeployResponse(
+            bucket_name=self.deployment_package.bucket.name,
+            code_sha256=self.deployment_package.code_sha256,
+            object_key=self.deployment_package.object_key,
+        )
+
+    def _build_response_destroy(self) -> Optional[BaseModel]:
+        """Build response for destroy stage."""
+        return None
 
     def post_deploy(self) -> Any:
         """Run during the **post_deploy** stage."""
@@ -336,7 +528,7 @@ class AwsLambdaHook(Generic[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar], Hook):
         return True
 
 
-class FunctionHook(AwsLambdaHook[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar]):
+class FunctionHook(AwsLambdaHook[_ProjectTypeVar]):
     """Hook used in the creation of an AWS Lambda Function."""
 
     @cached_property
@@ -345,7 +537,7 @@ class FunctionHook(AwsLambdaHook[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar]):
         raise NotImplementedError
 
 
-class LayerHook(AwsLambdaHook[_AwsLambdaHookArgsTypeVar, _ProjectTypeVar]):
+class LayerHook(AwsLambdaHook[_ProjectTypeVar]):
     """Hook used in the create of an AWS Lambda Layer."""
 
     @cached_property

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Type
+from typing import TYPE_CHECKING, Any
 
 from runway.compat import cached_property
 
@@ -12,27 +12,32 @@ from .python_requirements.deployment_package import PythonDeploymentPackage
 from .python_requirements.python_project import PythonProject
 
 if TYPE_CHECKING:
-    pass
+    from runway.context import CfnginContext
+
+    from .base_classes import DeploymentPackage
 
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
 
-class PythonFunction(FunctionHook[PythonFunctionHookArgs, PythonProject]):
+class PythonFunction(FunctionHook[PythonProject]):
     """Hook for creating an AWS Lambda Function using Python runtime."""
-
-    ARGS_PARSER: ClassVar[Type[PythonFunctionHookArgs]] = PythonFunctionHookArgs
 
     args: PythonFunctionHookArgs
 
+    def __init__(self, context: CfnginContext, **kwargs: Any) -> None:
+        """Instantiate class."""
+        super().__init__(context)
+        self.args = PythonFunctionHookArgs.parse_obj(kwargs)
+
     @cached_property
-    def deployment_package(self) -> PythonDeploymentPackage:
+    def deployment_package(self) -> DeploymentPackage[PythonProject]:
         """AWS Lambda deployment package."""
         return PythonDeploymentPackage(self.project)
 
     @cached_property
     def project(self) -> PythonProject:
         """Project being deployed as an AWS Lambda Function."""
-        return PythonProject(self.args, self.context)
+        return PythonProject(self.args, self.ctx)
 
     def cleanup(self) -> None:
         """Cleanup."""
@@ -40,10 +45,12 @@ class PythonFunction(FunctionHook[PythonFunctionHookArgs, PythonProject]):
 
     def pre_deploy(self) -> Any:
         """Run during the **pre_deploy** stage."""
-        self.project.pip.install(
-            requirements=self.project.requirements_txt,
-            target=self.project.dependency_directory,
-        )
-        self.deployment_package.build()
-        self.cleanup()
-        return True
+        try:
+            self.project.pip.install(
+                requirements=self.project.requirements_txt,
+                target=self.project.dependency_directory,
+            )
+            self.deployment_package.upload()
+            return self.build_response("deploy")
+        finally:
+            self.cleanup()
