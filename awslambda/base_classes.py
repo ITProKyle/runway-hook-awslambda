@@ -1,22 +1,15 @@
 """Base classes."""
 from __future__ import annotations
 
-import base64
-import hashlib
 import logging
-import mimetypes
 import shlex
 import shutil
 import subprocess
-import zipfile
-from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Dict,
     Generic,
-    Iterator,
     List,
     Optional,
     Sequence,
@@ -25,15 +18,12 @@ from typing import (
     cast,
     overload,
 )
-from urllib.parse import urlencode
 
 from runway.cfngin.hooks.protocols import CfnginHookProtocol
 from runway.compat import cached_property
-from runway.core.providers.aws.s3 import Bucket
 from typing_extensions import Literal
 
 from .constants import BASE_WORK_DIR
-from .exceptions import BucketAccessDenied, BucketNotFound
 from .models.args import AwsLambdaHookArgs
 from .models.responses import AwsLambdaHookDeployResponse
 from .source_code import SourceCode
@@ -41,10 +31,11 @@ from .source_code import SourceCode
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import igittigitt
     from runway._logging import RunwayLogger
     from runway.context import CfnginContext
     from runway.utils import BaseModel
+
+    from .deployment_package import DeploymentPackage
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
@@ -222,225 +213,29 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
             source_code.add_filter_rule(rule)
         return source_code
 
+    def cleanup(self) -> None:
+        """Cleanup project files at the end of execution.
+
+        If any cleanup is needed (e.g. removal of temporary dependency directory)
+        it should be implimented here. Hook's should call this method in a
+        ``finally`` block to ensure it is run even if the rest of the hook
+        encountered an error.
+
+        """
+
+    def install_dependencies(self) -> None:
+        """Install project dependencies.
+
+        Arguments/options should be read from the ``args`` attribute of this
+        object instead of being passed into the method call. The method itself
+        only exists for timing and filling in custom handling that is required
+        for each project type.
+
+        """
+        raise NotImplementedError
+
 
 _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
-
-
-# TODO move to runway.utils or similar
-def calculate_lambda_code_sha256(file_path: Path) -> str:
-    """Calculate the CodeSha256 of a deployment package.
-
-    Returns:
-        Value to pass to CloudFormation ``AWS::Lambda::Version.CodeSha256``.
-
-    """
-    file_hash = hashlib.sha256()
-    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
-    with open(file_path, "rb") as buf:
-        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
-        chunk = buf.read(read_size)  # seed chunk with initial value
-        while chunk:
-            file_hash.update(chunk)
-            chunk = buf.read(read_size)  # read in new chunk
-    return base64.b64encode(file_hash.digest()).decode()
-
-
-# TODO move to runway.utils or similar
-def calculate_s3_content_md5(file_path: Path) -> str:
-    """Calculate the ContentMD5 value for a file being uploaded to AWS S3.
-
-    Value will be the base64 encoded.
-
-    """
-    file_hash = hashlib.md5()
-    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
-    with open(file_path, "rb") as buf:
-        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
-        chunk = buf.read(read_size)  # seed chunk with initial value
-        while chunk:
-            file_hash.update(chunk)
-            chunk = buf.read(read_size)  # read in new chunk
-    return base64.b64encode(file_hash.digest()).decode()
-
-
-class DeploymentPackage(Generic[_ProjectTypeVar]):
-    """AWS Lambda Deployment Package.
-
-    Attributes:
-        project: Project that is being built into a deployment package.
-
-    """
-
-    project: _ProjectTypeVar
-
-    def __init__(self, project: _ProjectTypeVar) -> None:
-        """Instantiate class.
-
-        Args:
-            project: Project that is being built into a deployment package.
-
-        """
-        self.project = project
-
-    @cached_property
-    def archive_file(self) -> Path:
-        """Path to archive file."""
-        return (
-            self.project.build_directory
-            / f"{self.project.args.function_name}.{self.project.source_code.md5_hash}.zip"
-        )
-
-    @cached_property
-    def bucket(self) -> Bucket:
-        """AWS S3 bucket where deployment package will be uploaded."""
-        bucket = Bucket(self.project.ctx, self.project.args.bucket_name)
-        if bucket.forbidden:
-            raise BucketAccessDenied(bucket)
-        if bucket.not_found:
-            raise BucketNotFound(bucket)
-        return bucket
-
-    @cached_property
-    def code_sha256(self) -> str:
-        """SHA256 of the archive file.
-
-        Returns:
-            Value to pass to CloudFormation ``AWS::Lambda::Version.CodeSha256``.
-
-        Raises:
-            FileNotFoundError: Property accessed before archive file has been built.
-
-        """
-        return calculate_lambda_code_sha256(self.archive_file)
-
-    @cached_property
-    def gitignore_filter(  # pylint: disable=no-self-use
-        self,
-    ) -> Optional[igittigitt.IgnoreParser]:
-        """Filter to use when zipping dependencies.
-
-        This should be overridden by subclasses if a filter should be used.
-
-        """
-        return None
-
-    @cached_property
-    def md5_checksum(self) -> str:
-        """MD5 of the archive file.
-
-        Returns:
-            Value to pass as ContentMD5 when uploading to AWS S3.
-
-        Raises:
-            FileNotFoundError: Property accessed before archive file has been built.
-
-        """
-        return calculate_s3_content_md5(self.archive_file)
-
-    @cached_property
-    def object_key(self) -> str:
-        """Key to use when upload object to AWS S3."""
-        prefix = "awslambda/functions"
-        if self.project.args.object_prefix:
-            prefix = (
-                f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
-            )
-        return f"{prefix}/{self.archive_file.name}"
-
-    def build(self) -> Path:
-        """Build the deployment package."""
-        with zipfile.ZipFile(
-            self.archive_file, "w", zipfile.ZIP_DEFLATED
-        ) as archive_file:
-            self._build_zip_dependencies(archive_file)
-
-            # for file_info in archive_file.filelist:
-            #     LOGGER.info(file_info)
-
-        # clear cached properties so they can recalculate;
-        # handles cached property not being resolved yet
-        with suppress(AttributeError):
-            del self.code_sha256
-        with suppress(AttributeError):
-            del self.md5_checksum
-        return self.archive_file
-
-    @overload
-    def build_tag_set(self, *, url_encoded: Literal[True] = ...) -> str:
-        ...
-
-    @overload
-    def build_tag_set(self, *, url_encoded: Literal[False] = ...) -> Dict[str, str]:
-        ...
-
-    def build_tag_set(self, *, url_encoded: bool = True) -> Union[Dict[str, str], str]:
-        """Build tag set to be applied to the S3 object.
-
-        Args:
-            url_encoded: Whether to return a dict or URL encoded query string.
-
-        """
-        metadata = {
-            "runway.cfngin:awslambda.code_sha256": self.code_sha256,
-            "runway.cfngin:awslambda.source_code.hash": self.project.source_code.md5_hash,
-            "runway.cfngin:awslambda.md5_checksum": self.md5_checksum,
-        }
-        tags = {**self.project.ctx.tags, **self.project.args.tags, **metadata}
-        if url_encoded:
-            return urlencode(tags)
-        return tags
-
-    def _build_zip_dependencies(self, archive_file: zipfile.ZipFile) -> None:
-        """Handle zipping dependencies.
-
-        Args:
-            archive_file: Archive file that is currently open and ready to be
-                written to.
-
-        """
-        for dep in self.iterate_dependency_directory():
-            archive_file.write(dep, dep.relative_to(self.project.dependency_directory))
-
-    def iterate_dependency_directory(self) -> Iterator[Path]:
-        """Iterate over the contents of the dependency directory.
-
-        If ``gitignore_filter`` is set, it will be used to exclude files.
-
-        """
-        for child in self.project.dependency_directory.rglob("*"):
-            if child.is_dir():
-                continue  # ignore directories
-            if self.gitignore_filter and self.gitignore_filter.match(child):
-                continue  # ignore files that match the filter
-            yield child
-
-    def upload(self, *, build: bool = True) -> None:
-        """Upload deployment package.
-
-        Args:
-            build: If true, the deployment package will be built before before
-                trying to upload it. If false, it must have already been built.
-
-        """
-        if build:
-            self.build()
-
-        # we don't really need encoding - it can be NoneType so throw it away
-        content_type, _content_encoding = mimetypes.guess_type(self.archive_file)
-
-        LOGGER.info(
-            "uploading deployment package %s...",
-            self.bucket.format_bucket_path_uri(key=self.object_key),
-        )
-
-        self.bucket.client.put_object(
-            Body=self.archive_file.read_bytes(),
-            Bucket=self.project.args.bucket_name,
-            ContentMD5=self.md5_checksum,
-            ContentType=content_type,
-            Key=self.object_key,
-            Tagging=self.build_tag_set(),
-        )
 
 
 class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):

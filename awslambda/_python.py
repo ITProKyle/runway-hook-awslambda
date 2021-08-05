@@ -32,7 +32,7 @@ class PythonFunction(FunctionHook[PythonProject]):
     @cached_property
     def deployment_package(self) -> DeploymentPackage[PythonProject]:
         """AWS Lambda deployment package."""
-        return PythonDeploymentPackage(self.project)
+        return PythonDeploymentPackage.init(self.project)
 
     @cached_property
     def project(self) -> PythonProject:
@@ -46,10 +46,6 @@ class PythonFunction(FunctionHook[PythonProject]):
     def pre_deploy(self) -> Any:
         """Run during the **pre_deploy** stage."""
         try:
-            self.project.pip.install(
-                requirements=self.project.requirements_txt,
-                target=self.project.dependency_directory,
-            )
             self.deployment_package.upload()
             return self.build_response("deploy")
         finally:

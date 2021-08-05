@@ -41,3 +41,23 @@ class BucketNotFound(CfnginError):
         self.bucket_name = bucket.name
         self.message = f"bucket {bucket.name} not found"
         super().__init__()
+
+
+class RequiredTagNotFound(CfnginError):
+    """Required tag not found on resource."""
+
+    resource: str
+    tag_key: str
+
+    def __init__(self, resource: str, tag_key: str) -> None:
+        """Instantiate class.
+
+        Args:
+            resource: An ID or name to identify a resource.
+            tag_key: Key of the tag that could not be found.
+
+        """
+        self.resource = resource
+        self.tag_key = tag_key
+        self.message = f"required tag '{tag_key}' not found for {resource}"
+        super().__init__()

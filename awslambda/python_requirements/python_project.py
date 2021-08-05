@@ -97,6 +97,17 @@ class PythonProject(Project[PythonFunctionHookArgs]):
 
     def cleanup(self) -> None:
         """Cleanup temporary files after the build process has run."""
-        if self.poetry:
+        if self.poetry and self.tmp_requirements_txt.exists():
             self.tmp_requirements_txt.unlink()
         shutil.rmtree(self.dependency_directory, ignore_errors=True)
+
+    def install_dependencies(self) -> None:
+        """Install project dependencies."""
+        LOGGER.debug("installing dependencies to %s...", self.dependency_directory)
+        self.pip.install(
+            requirements=self.requirements_txt,
+            target=self.dependency_directory,
+        )
+        LOGGER.debug(
+            "dependencies successfully installed to %s", self.dependency_directory
+        )

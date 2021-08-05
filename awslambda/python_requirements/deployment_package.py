@@ -6,7 +6,7 @@ from typing import Optional
 from igittigitt import IgnoreParser
 from runway.compat import cached_property
 
-from ..base_classes import DeploymentPackage
+from ..deployment_package import DeploymentPackage
 from .python_project import PythonProject
 
 
@@ -26,7 +26,6 @@ class PythonDeploymentPackage(DeploymentPackage[PythonProject]):
 
         # TODO make this configurable
         gitignore_filter.add_rule("**/__pycache__*", self.project.dependency_directory)
-        # self.gitignore_filter.add_rule("**/bin", self.project.dependency_directory)
         gitignore_filter.add_rule(
             "**/*.dist-info***/*.dist-info*", self.project.dependency_directory
         )
