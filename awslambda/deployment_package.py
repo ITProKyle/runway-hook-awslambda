@@ -5,6 +5,7 @@ import base64
 import hashlib
 import logging
 import mimetypes
+import stat
 import zipfile
 from contextlib import suppress
 from typing import (
@@ -87,6 +88,10 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     compatability with the S3 object class that can be returned.
 
     Attributes:
+        META_TAGS: Mapping of metadata to the tag-key is is stored in on
+            the S3 object.
+        ZIPFILE_PERMISSION_MASK: Mast to retrieve unix file permissions
+            from the external attributes property of a ``zipfile.ZipInfo``.
         project: Project that is being built into a deployment package.
 
     """
@@ -96,6 +101,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         "md5_checksum": "runway.cfngin:awslambda.md5_checksum",
         "source_code.hash": "runway.cfngin:awslambda.source_code.hash",
     }
+    ZIPFILE_PERMISSION_MASK: ClassVar[int] = (
+        stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+    ) << 16
 
     project: _ProjectTypeVar
 
@@ -195,9 +203,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         ) as archive_file:
             self._build_zip_dependencies(archive_file)
             self._build_zip_source_code(archive_file)
-
-            # for file_info in archive_file.filelist:
-            #     LOGGER.info(file_info)
+            self._build_fix_file_permissions(archive_file)
 
         # clear cached properties so they can recalculate;
         # handles cached property not being resolved yet
@@ -206,6 +212,36 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         with suppress(AttributeError):
             del self.md5_checksum
         return self.archive_file
+
+    def _build_fix_file_permissions(self, archive_file: zipfile.ZipFile) -> None:
+        """Fix file permissions of the files contained within the archive file.
+
+        Only need to ensure that the file is executable. Permissions will be
+        change to 755 or 655 if needed. The change will occur within the
+        archive file only - the original file will be unchanged.
+
+        This should be run after all files have been added to the archive file.
+
+        Args:
+            archive_file: Archive file that is currently open and ready to be
+                written to.
+
+        """
+        for file_info in archive_file.filelist:
+            current_perms = (
+                file_info.external_attr & self.ZIPFILE_PERMISSION_MASK
+            ) >> 16
+            required_perm = 0o755 if current_perms & stat.S_IXUSR != 0 else 0o644
+            if current_perms != required_perm:
+                LOGGER.debug(
+                    "fixing file permissions for %s: %o => %o",
+                    file_info.filename,
+                    current_perms,
+                    required_perm,
+                )
+                file_info.external_attr = (
+                    file_info.external_attr & ~self.ZIPFILE_PERMISSION_MASK
+                ) | (required_perm << 16)
 
     def _build_zip_dependencies(self, archive_file: zipfile.ZipFile) -> None:
         """Handle installing & zipping dependencies.
