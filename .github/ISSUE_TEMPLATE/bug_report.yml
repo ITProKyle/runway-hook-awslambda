@@ -17,7 +17,7 @@ body:
   - type: textarea
     attributes:
       label: Bug Description
-      description: |
+      description: >-
         What is the bug? Please provide a snippet of Runway's output including
         any errors and the messages logged before the error.
         Verbose or debug logs are preferred but please ensure all secrets and
@@ -35,11 +35,11 @@ body:
   - type: textarea
     attributes:
       label: Steps To Reproduce
-      description: |
+      description: >-
         Please provide the steps that can be used to reproduce this behavior.
 
         If possible, please include an example project (GitHub repository) that
-         is capable of reproducing this behavior.
+        is capable of reproducing this behavior.
         The example project should only include the minimum required code
         to reproduce the issue.
         It should not depend on any external resource.
@@ -76,9 +76,11 @@ body:
         Provide all relevant information below, e.g. OS version, language versions.
 
         examples:
-          - **OS**: Ubuntu 20.04
-          - **Node**: 13.14.0
-          - **npm**: 7.6.3
+          - **OS:** macOS 11
+          - **python version:** 3.10.0
+          - **npm version:** 7.20.0
+          - **terraform version:** 1.0.0
+          - **serverless version:** 2.0.0
 
       placeholder: |
         - OS: macOS 11
