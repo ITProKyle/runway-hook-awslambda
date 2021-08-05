@@ -84,14 +84,18 @@ class Pip(DependencyManager):
         return cmd
 
 
-def is_pip_project(source_code: SourceCode) -> bool:
+def is_pip_project(
+    source_code: SourceCode, *, file_name: str = "requirements.txt"
+) -> bool:
     """Determine if source code is a pip project.
 
     Args:
         source_code: Source code object.
+        file_name: Name of the requirements file. Unlike some other dependency
+            manager, this is configurable of pip.
 
     """
-    requirements_txt = source_code.root_directory / "requirements.txt"
+    requirements_txt = source_code.root_directory / file_name
 
     if requirements_txt.is_file():
         return True

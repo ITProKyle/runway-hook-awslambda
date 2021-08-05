@@ -6,7 +6,18 @@ from runway.utils import BaseModel
 
 
 class AwsLambdaHookDeployResponse(BaseModel):
-    """Data model for AwsLambdaHook deploy response."""
+    """Data model for AwsLambdaHook deploy response.
+
+    Attributes:
+        bucket_name: Name of the S3 Bucket where the deployment package is
+            located.
+        code_sha256: SHA256 of the deployment package. This can be used by
+            CloudFormation as the value of ``AWS::Lambda::Version.CodeSha256``.
+        object_key: Key (file path) of the deployment package S3 Object.
+        object_version_id: The version ID of the deployment package S3 Object.
+            This will only have a value if the S3 Bucket has versioning enabled.
+
+    """
 
     bucket_name: str = Field(..., alias="S3Bucket")
     code_sha256: str = Field(..., alias="CodeSha256")

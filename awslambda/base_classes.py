@@ -328,6 +328,11 @@ class FunctionHook(AwsLambdaHook[_ProjectTypeVar]):
     """Hook used in the creation of an AWS Lambda Function."""
 
     @cached_property
+    def deployment_package(self) -> DeploymentPackage[_ProjectTypeVar]:
+        """AWS Lambda deployment package."""
+        raise NotImplementedError
+
+    @cached_property
     def project(self) -> _ProjectTypeVar:
         """Project being deployed as an AWS Lambda Function."""
         raise NotImplementedError
@@ -335,6 +340,11 @@ class FunctionHook(AwsLambdaHook[_ProjectTypeVar]):
 
 class LayerHook(AwsLambdaHook[_ProjectTypeVar]):
     """Hook used in the create of an AWS Lambda Layer."""
+
+    @cached_property
+    def deployment_package(self) -> DeploymentPackage[_ProjectTypeVar]:
+        """AWS Lambda deployment package."""
+        raise NotImplementedError
 
     @cached_property
     def project(self) -> _ProjectTypeVar:

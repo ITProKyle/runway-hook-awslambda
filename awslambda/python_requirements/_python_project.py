@@ -11,8 +11,13 @@ from runway.compat import cached_property
 from ..base_classes import Project
 from ..constants import BASE_WORK_DIR
 from ..models.args import PythonFunctionHookArgs
-from .dependency_managers.pip import Pip
-from .dependency_managers.poetry import Poetry, PoetryNotFoundError, is_poetry_project
+from .dependency_managers import (
+    Pip,
+    Poetry,
+    PoetryNotFoundError,
+    is_pip_project,
+    is_poetry_project,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -82,7 +87,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         if self.poetry:
             return self.poetry.export(output=self.tmp_requirements_txt)
         requirements_txt = self.source_code / "requirements.txt"
-        if requirements_txt.is_file():
+        if is_pip_project(self.source_code, file_name=requirements_txt.name):
             return requirements_txt
         raise PythonRequirementsNotFoundError(self.source_code)
 

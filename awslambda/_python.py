@@ -8,8 +8,7 @@ from runway.compat import cached_property
 
 from .base_classes import FunctionHook
 from .models.args import PythonFunctionHookArgs
-from .python_requirements.deployment_package import PythonDeploymentPackage
-from .python_requirements.python_project import PythonProject
+from .python_requirements import PythonDeploymentPackage, PythonProject
 
 if TYPE_CHECKING:
     from runway.context import CfnginContext

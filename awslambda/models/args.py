@@ -10,14 +10,27 @@ from runway.cfngin.hooks.base import HookArgsBaseModel
 
 
 class AwsLambdaHookArgs(HookArgsBaseModel):
-    """Base class for AWS Lambda hook arguments."""
+    """Base class for AWS Lambda hook arguments.
 
-    bucket_name: str  # s3 bucket to store zip
-    extend_gitignore: List[str] = []  # add more filter rules
-    function_name: str  # name of function (arbitrary - internal use)
-    object_prefix: Optional[str] = None  # prefix to append zip
-    runtime: str  # lambda function runtime
-    source_code: DirectoryPath  # path to source code
+    Attributes:
+        bucket_name: Name of the S3 Bucket where deployment package is/will
+            be stored.
+        extend_gitignore: gitignore rules that should be added to the rules
+            already defined in a ``.gitignore`` file in the source code directory.
+            This can be used with or without an existing file.
+        function_name: Name of the lambda function.
+        object_prefix: Prefix to add to the S3 Object key.
+        runtime: Runtime of the Lambda Function.
+        source_code: Path to the Lambda Function source code.
+
+    """
+
+    bucket_name: str
+    extend_gitignore: List[str] = []
+    function_name: str
+    object_prefix: Optional[str] = None
+    runtime: str
+    source_code: DirectoryPath
 
     @validator("source_code")
     def _resolve_path(cls, v: Path) -> Path:
@@ -25,8 +38,15 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
 
 class PythonFunctionHookArgs(AwsLambdaHookArgs):
-    """Hook arguments for a Python function."""
+    """Hook arguments for a Python function.
 
-    extend_pip_args: Optional[List[str]] = None  # extra args to pass to pip command
-    use_pipenv: bool = True  # explicitly disable the use of pipenv
-    use_poetry: bool = True  # explicitly disable the use of poetry
+    Args:
+        extend_pip_args: Additional arguments that should be passed to pip.
+        use_pipenv: Whether pipenv should be used if determined appropriate.
+        use_poetry: Whether poetry should be used if determined appropriate.
+
+    """
+
+    extend_pip_args: Optional[List[str]] = None
+    use_pipenv: bool = True
+    use_poetry: bool = True

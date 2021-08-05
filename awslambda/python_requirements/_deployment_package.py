@@ -7,7 +7,7 @@ from igittigitt import IgnoreParser
 from runway.compat import cached_property
 
 from ..deployment_package import DeploymentPackage
-from .python_project import PythonProject
+from ._python_project import PythonProject
 
 
 class PythonDeploymentPackage(DeploymentPackage[PythonProject]):
