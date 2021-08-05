@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import igittigitt
-    from mypy_boto3_s3.type_defs import HeadObjectOutputTypeDef
+    from mypy_boto3_s3.type_defs import HeadObjectOutputTypeDef, PutObjectOutputTypeDef
     from runway._logging import RunwayLogger
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
@@ -106,6 +106,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     ) << 16
 
     project: _ProjectTypeVar
+    _put_object_response: Optional[PutObjectOutputTypeDef] = None
 
     def __init__(self, project: _ProjectTypeVar) -> None:
         """Instantiate class.
@@ -190,6 +191,22 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
             )
         return f"{prefix}/{self.archive_file.name}"
+
+    @cached_property
+    def object_version_id(self) -> Optional[str]:
+        """S3 object version ID.
+
+        Returns:
+            The ID of the current object version. This will only have a value
+            if versioning is enabled on the bucket.
+
+        """
+        if (
+            not self._put_object_response
+            or "VersionId" not in self._put_object_response
+        ):
+            return None
+        return self._put_object_response["VersionId"]
 
     def build(self) -> Path:
         """Build the deployment package."""
@@ -319,7 +336,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             self.bucket.format_bucket_path_uri(key=self.object_key),
         )
 
-        self.bucket.client.put_object(
+        self._put_object_response = self.bucket.client.put_object(
             Body=self.archive_file.read_bytes(),
             Bucket=self.project.args.bucket_name,
             ContentMD5=self.md5_checksum,
@@ -327,6 +344,11 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             Key=self.object_key,
             Tagging=self.build_tag_set(),
         )
+
+        # clear cached properties so they can recalculate;
+        # handles cached property not being resolved yet
+        with suppress(AttributeError):
+            del self.object_version_id
 
     @classmethod
     def init(cls, project: _ProjectTypeVar) -> DeploymentPackage[_ProjectTypeVar]:
@@ -438,6 +460,19 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         if "TagSet" not in response:
             return {}
         return {t["Key"]: t["Value"] for t in response["TagSet"]}
+
+    @cached_property
+    def object_version_id(self) -> Optional[str]:
+        """S3 object version ID.
+
+        Returns:
+            The ID of the current object version. This will only have a value
+            if versioning is enabled on the bucket.
+
+        """
+        if not self.head or "VersionId" not in self.head:
+            return None
+        return self.head["VersionId"]
 
     def build(self) -> Path:
         """Build the deployment package."""

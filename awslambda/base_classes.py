@@ -296,6 +296,7 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             bucket_name=self.deployment_package.bucket.name,
             code_sha256=self.deployment_package.code_sha256,
             object_key=self.deployment_package.object_key,
+            object_version_id=self.deployment_package.object_version_id,
         )
 
     def _build_response_destroy(self) -> Optional[BaseModel]:

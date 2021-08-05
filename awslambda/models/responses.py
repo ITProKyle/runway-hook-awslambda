@@ -11,7 +11,7 @@ class AwsLambdaHookDeployResponse(BaseModel):
     bucket_name: str = Field(..., alias="S3Bucket")
     code_sha256: str = Field(..., alias="CodeSha256")
     object_key: str = Field(..., alias="S3Key")
-    object_version: Optional[str] = Field(None, alias="S3ObjectVersion")
+    object_version_id: Optional[str] = Field(None, alias="S3ObjectVersion")
 
     class Config:
         """Model configuration."""
