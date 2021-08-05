@@ -8,10 +8,13 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.8"
 
-runway = "^2.3.0"
+runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
+tomli = "^1.1.0"
+igittigitt = "^2.0.4"
 
 [tool.poetry.dev-dependencies]
 black = "21.7b0"
+boto3-stubs = { extras = ["s3"], version = "^1.16" }
 coverage = "^5.5"
 flake8 = "^3.9.2"
 flake8-bugbear = "^21.4.3"  # flake8 plugin
@@ -25,7 +28,7 @@ nitpick = "^0.27.0"  # flake8 plugin
 pep8-naming = "^0.12.0"  # flake8 plugin
 pre-commit = "^2.10.1"
 pydocstyle = "^6.1.1"
-pylint = "^2.9.1"
+pylint = "<2.9, !=2.8.3"  # 2.9 is broken; 2.8.3 locks down astriod too much
 pytest = "^6.2.2"
 pytest-cov = "^2.12.1"
 pytest-mock = "^3.5.1"
@@ -108,6 +111,9 @@ allow-wildcard-with-all = "no"
 logging-format-style = "old"
 
 [tool.pylint.master]
+extension-pkg-whitelist = [
+  "pydantic",  # https://github.com/samuelcolvin/pydantic/issues/992#issuecomment-553545180
+]
 jobs = 0
 
 [tool.pylint.message_control]

@@ -54,7 +54,22 @@
     "maxNumberOfProblems": 100,
     "version": "0.1",
     "words": [
+        "astriod",
         "awslambda",
-        "fstring"
+        "cfngin",
+        "editorconfig",
+        "fspath",
+        "fstring",
+        "igittigitt",
+        "IRWXG",
+        "IRWXO",
+        "IRWXU",
+        "IXUSR",
+        "pyproject",
+        "pyrightconfig",
+        "rcfile",
+        "rglob",
+        "tomli",
+        "turediv"
     ]
 }
