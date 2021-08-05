@@ -63,7 +63,7 @@ class Poetry(DependencyManager):
         *,
         dev: bool = False,
         extras: Optional[List[str]] = None,
-        output: PathLike[str],
+        output: "PathLike[str]",
         output_format: str = "requirements.txt",
         with_credentials: bool = True,
         without_hashes: bool = True,

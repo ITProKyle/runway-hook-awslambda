@@ -31,7 +31,9 @@ class Pip(DependencyManager):
         """Get pip version."""
         return self._run_command([self.EXECUTABLE, "--version"])
 
-    def install(self, *, requirements: PathLike[str], target: PathLike[str]) -> None:
+    def install(
+        self, *, requirements: "PathLike[str]", target: "PathLike[str]"
+    ) -> None:
         """Install dependencies.
 
         Args:
