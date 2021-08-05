@@ -194,6 +194,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             self.archive_file, "w", zipfile.ZIP_DEFLATED
         ) as archive_file:
             self._build_zip_dependencies(archive_file)
+            self._build_zip_source_code(archive_file)
 
             # for file_info in archive_file.filelist:
             #     LOGGER.info(file_info)
@@ -217,6 +218,13 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         self.project.install_dependencies()
         for dep in self.iterate_dependency_directory():
             archive_file.write(dep, dep.relative_to(self.project.dependency_directory))
+
+    def _build_zip_source_code(self, archive_file: zipfile.ZipFile) -> None:
+        """Handle zipping the project source code."""
+        for src_file in self.project.source_code:
+            archive_file.write(
+                src_file, src_file.relative_to(self.project.source_code.root_directory)
+            )
 
     @overload
     def build_tag_set(self, *, url_encoded: Literal[True] = ...) -> str:
