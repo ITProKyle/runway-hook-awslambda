@@ -14,7 +14,7 @@ igittigitt = "^2.0.4"
 
 [tool.poetry.dev-dependencies]
 black = "21.7b0"
-boto3-stubs = { extras = ["s3"], version = "^1.16" }
+boto3-stubs = { extras = ["s3"], version = "^1.18" }
 coverage = "^5.5"
 flake8 = "^3.9.2"
 flake8-bugbear = "^21.4.3"  # flake8 plugin
