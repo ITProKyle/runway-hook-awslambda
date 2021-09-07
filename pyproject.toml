@@ -9,7 +9,7 @@ license = "Apache-2.0"
 python = "^3.8"
 
 runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
-tomli = "^1.1.0"
+tomli = "^1.2.1"
 igittigitt = "^2.0.4"
 
 [tool.poetry.dev-dependencies]
