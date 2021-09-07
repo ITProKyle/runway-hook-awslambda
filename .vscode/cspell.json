@@ -57,6 +57,7 @@
         "astriod",
         "awslambda",
         "cfngin",
+        "creds",
         "editorconfig",
         "fspath",
         "fstring",
@@ -69,6 +70,8 @@
         "pyrightconfig",
         "rcfile",
         "rglob",
+        "stubber",
+        "stubbers",
         "tomli",
         "turediv"
     ]
