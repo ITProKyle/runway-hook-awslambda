@@ -9,8 +9,6 @@ updates:
       - github_actions
     open-pull-requests-limit: 5
     package-ecosystem: github-actions
-    # reviewers:
-    #   - ITProKyle
     schedule:
       interval: daily
       time: "08:00"
@@ -18,12 +16,12 @@ updates:
   - directory: /
     open-pull-requests-limit: 5
     package-ecosystem: npm
-    # reviewers:
-    #   - ITProKyle
     schedule:
-      interval: daily
+      day: monday
+      interval: weekly
       time: "08:00"
       timezone: America/New_York
+    versioning-strategy: lockfile-only
   - directory: /
     ignore:
       - dependency-name: boto3
@@ -34,25 +32,9 @@ updates:
       - python
     open-pull-requests-limit: 5
     package-ecosystem: pip
-    # reviewers:
-    #   - ITProKyle
     schedule:
-      interval: daily
+      day: monday
+      interval: weekly
       time: "08:00"
       timezone: America/New_York
-  - directory: /docs
-    ignore:
-      - dependency-name: boto3
-      - dependency-name: botocore
-    labels:
-      - dependencies
-      - poetry
-      - python
-    open-pull-requests-limit: 5
-    package-ecosystem: pip
-    # reviewers:
-    #   - ITProKyle
-    schedule:
-      interval: daily
-      time: "08:00"
-      timezone: America/New_York
+    versioning-strategy: lockfile-only
