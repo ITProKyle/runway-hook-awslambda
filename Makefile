@@ -66,5 +66,10 @@ spellcheck: ## run cspell
 	@npx cspell "**/*" --color --config .vscode/cspell.json --must-find-files
 	@echo ""
 
-test: ## run tests
-	@echo "Success!"
+test: ## run unit tests
+	@echo "Running unit tests..."
+	@poetry run pytest \
+		--cov awslambda \
+		--cov-report term-missing:skip-covered \
+		--dist loadfile \
+		--numprocesses auto

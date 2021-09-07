@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from .deployment_package import DeploymentPackage
 
-LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
+LOGGER = cast("RunwayLogger", logging.getLogger(__name__))
 
 _AwsLambdaHookArgsTypeVar = TypeVar(
     "_AwsLambdaHookArgsTypeVar", bound=AwsLambdaHookArgs, covariant=True
@@ -288,7 +288,7 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             return self._build_response_deploy()
         if stage == "destroy":
             return self._build_response_destroy()
-        return None
+        raise NotImplementedError("only deploy and destroy are supported")
 
     def _build_response_deploy(self) -> AwsLambdaHookDeployResponse:
         """Build response for deploy stage."""
