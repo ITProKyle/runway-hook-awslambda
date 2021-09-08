@@ -14,7 +14,7 @@ from typing_extensions import Literal
 from ...base_classes import DependencyManager
 
 if TYPE_CHECKING:
-    from os import PathLike
+    from _typeshed import StrPath
 
     from ...source_code import SourceCode
 
@@ -63,7 +63,7 @@ class Poetry(DependencyManager):
         *,
         dev: bool = False,
         extras: Optional[List[str]] = None,
-        output: "PathLike[str]",
+        output: StrPath,
         output_format: str = "requirements.txt",
         with_credentials: bool = True,
         without_hashes: bool = True,

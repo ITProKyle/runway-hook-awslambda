@@ -11,7 +11,7 @@ import igittigitt
 from runway.compat import cached_property
 
 if TYPE_CHECKING:
-    from os import PathLike
+    from _typeshed import StrPath
 
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
@@ -31,7 +31,7 @@ class SourceCode:
 
     def __init__(
         self,
-        root_directory: "PathLike[str]",
+        root_directory: StrPath,
         *,
         gitignore_filter: Optional[igittigitt.IgnoreParser] = None,
     ) -> None:
@@ -89,7 +89,7 @@ class SourceCode:
         """
         self.gitignore_filter.add_rule(pattern=pattern, base_path=self.root_directory)
 
-    def copy(self, destination_directory: "PathLike[str]") -> SourceCode:
+    def copy(self, destination_directory: StrPath) -> SourceCode:
         """Copy source code to a new directory.
 
         Files that match the ignore filter are not copied.
@@ -155,6 +155,6 @@ class SourceCode:
         """Return the string representation of the object."""
         return str(self.root_directory)
 
-    def __truediv__(self, other: Union["PathLike[str]", str]) -> Path:
+    def __truediv__(self, other: StrPath) -> Path:
         """Create a new path object from source code's root directory."""
         return self.root_directory / other

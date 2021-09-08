@@ -12,8 +12,7 @@ from runway.compat import cached_property
 from ...base_classes import DependencyManager
 
 if TYPE_CHECKING:
-    from os import PathLike
-
+    from _typeshed import StrPath
     from runway._logging import RunwayLogger
 
     from ...source_code import SourceCode
@@ -31,9 +30,7 @@ class Pip(DependencyManager):
         """Get pip version."""
         return self._run_command([self.EXECUTABLE, "--version"])
 
-    def install(
-        self, *, requirements: "PathLike[str]", target: "PathLike[str]"
-    ) -> None:
+    def install(self, *, requirements: StrPath, target: StrPath) -> None:
         """Install dependencies.
 
         Args:
