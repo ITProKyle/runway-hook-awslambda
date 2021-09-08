@@ -129,8 +129,6 @@ class SourceCode:
         """Compare if self is equal to another object."""
         if isinstance(other, SourceCode):
             return self.root_directory == other.root_directory
-        if isinstance(other, Path):
-            return self.root_directory == other
         return False
 
     def __fspath__(self) -> Union[str, bytes]:
