@@ -44,7 +44,7 @@ _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
 
 
 # TODO move to runway.utils or similar
-def calculate_lambda_code_sha256(file_path: Path) -> str:
+def calculate_lambda_code_sha256(file_path: Path) -> str:  # cov: ignore
     """Calculate the CodeSha256 of a deployment package.
 
     Returns:
@@ -63,7 +63,7 @@ def calculate_lambda_code_sha256(file_path: Path) -> str:
 
 
 # TODO move to runway.utils or similar
-def calculate_s3_content_md5(file_path: Path) -> str:
+def calculate_s3_content_md5(file_path: Path) -> str:  # cov: ignore
     """Calculate the ContentMD5 value for a file being uploaded to AWS S3.
 
     Value will be the base64 encoded.
@@ -287,6 +287,10 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     def build_tag_set(self, *, url_encoded: Literal[False] = ...) -> Dict[str, str]:
         ...
 
+    @overload
+    def build_tag_set(self, *, url_encoded: bool = ...) -> Union[Dict[str, str], str]:
+        ...
+
     def build_tag_set(self, *, url_encoded: bool = True) -> Union[Dict[str, str], str]:
         """Build tag set to be applied to the S3 object.
 
@@ -458,7 +462,8 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             Bucket=self.bucket.name, Key=self.object_key
         )
         if "TagSet" not in response:
-            return {}
+            # can't be hit when using botocore.stub.Stubber as TagSet is required
+            return {}  # cov: ignore
         return {t["Key"]: t["Value"] for t in response["TagSet"]}
 
     @cached_property

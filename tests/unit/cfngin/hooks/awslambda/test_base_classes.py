@@ -70,7 +70,7 @@ class TestAwsLambdaHook:
         self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
     ) -> None:
         """Test post_deploy."""
-        caplog.set_level(logging.WARNING, logger=MODULE)
+        caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
         assert AwsLambdaHook(cfngin_context).post_deploy()
         assert (
             f"post_deploy not implimented for {AwsLambdaHook.__name__}"
@@ -81,7 +81,7 @@ class TestAwsLambdaHook:
         self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
     ) -> None:
         """Test post_destroy."""
-        caplog.set_level(logging.WARNING, logger=MODULE)
+        caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
         assert AwsLambdaHook(cfngin_context).post_destroy()
         assert (
             f"post_destroy not implimented for {AwsLambdaHook.__name__}"
@@ -92,7 +92,7 @@ class TestAwsLambdaHook:
         self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
     ) -> None:
         """Test pre_deploy."""
-        caplog.set_level(logging.WARNING, logger=MODULE)
+        caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
         assert AwsLambdaHook(cfngin_context).pre_deploy()
         assert (
             f"pre_deploy not implimented for {AwsLambdaHook.__name__}"
@@ -103,7 +103,7 @@ class TestAwsLambdaHook:
         self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
     ) -> None:
         """Test pre_destroy."""
-        caplog.set_level(logging.WARNING, logger=MODULE)
+        caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
         assert AwsLambdaHook(cfngin_context).pre_destroy()
         assert (
             f"pre_destroy not implimented for {AwsLambdaHook.__name__}"

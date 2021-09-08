@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from .deployment_package import DeploymentPackage
 
-LOGGER = cast("RunwayLogger", logging.getLogger(__name__))
+LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
 _AwsLambdaHookArgsTypeVar = TypeVar(
     "_AwsLambdaHookArgsTypeVar", bound=AwsLambdaHookArgs, covariant=True
