@@ -75,7 +75,9 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         if not is_poetry_project(self.source_code):
             return None
         if not self.args.use_poetry:
-            LOGGER.warning("poetry project detected but use of poetry is disabled")
+            LOGGER.warning(
+                "poetry project detected but use of poetry is explicitly disabled"
+            )
             return None
         if not Poetry.found_in_path():
             raise PoetryNotFoundError

@@ -60,6 +60,10 @@ class Pip(DependencyManager):
             requirements: Path to a ``requirements.txt`` file.
             target: Path to a directory where dependencies will be installed.
 
+        Raises:
+            PipInstallFailedError: The subprocess used to run the commend
+                exited with an error.
+
         """
         target = Path(target) if not isinstance(target, Path) else target
         target.mkdir(exist_ok=True, parents=True)
