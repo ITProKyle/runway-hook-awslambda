@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, List, Optional
+from typing import TYPE_CHECKING, Any, Final, List, Optional, Union
 
 import tomli
 from runway.cfngin.exceptions import CfnginError
@@ -14,7 +14,7 @@ from typing_extensions import Literal
 from ...base_classes import DependencyManager
 
 if TYPE_CHECKING:
-    from os import PathLike
+    from _typeshed import StrPath
 
     from ...source_code import SourceCode
 
@@ -63,7 +63,7 @@ class Poetry(DependencyManager):
         *,
         dev: bool = False,
         extras: Optional[List[str]] = None,
-        output: "PathLike[str]",
+        output: StrPath,
         output_format: str = "requirements.txt",
         with_credentials: bool = True,
         without_hashes: bool = True,
@@ -104,14 +104,14 @@ class Poetry(DependencyManager):
         raise PoetryExportFailedError(result)
 
 
-def is_poetry_project(source_code: SourceCode) -> bool:
+def is_poetry_project(source_code: Union[Path, SourceCode]) -> bool:
     """Determine if source code is a poetry project.
 
     Args:
         source_code: Source code object.
 
     """
-    pyproject_path = source_code.root_directory / "pyproject.toml"
+    pyproject_path = source_code / "pyproject.toml"
 
     if not pyproject_path.is_file():
         return False

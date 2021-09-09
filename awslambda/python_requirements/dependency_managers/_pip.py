@@ -5,20 +5,42 @@ import logging
 import shlex
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, List, Literal, Optional, Sequence, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Final,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+)
 
+from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
 
 from ...base_classes import DependencyManager
 
 if TYPE_CHECKING:
-    from os import PathLike
-
+    from _typeshed import StrPath
     from runway._logging import RunwayLogger
 
     from ...source_code import SourceCode
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
+
+
+class PipInstallFailedError(CfnginError):
+    """Pip install failed."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Instantiate class. All args/kwargs are passed to parent method."""
+        self.message = (
+            "pip failed to install dependencies; "
+            "review pip's output above to troubleshoot"
+        )
+        super().__init__(*args, **kwargs)
 
 
 class Pip(DependencyManager):
@@ -31,14 +53,16 @@ class Pip(DependencyManager):
         """Get pip version."""
         return self._run_command([self.EXECUTABLE, "--version"])
 
-    def install(
-        self, *, requirements: "PathLike[str]", target: "PathLike[str]"
-    ) -> None:
-        """Install dependencies.
+    def install(self, *, requirements: StrPath, target: StrPath) -> Path:
+        """Install dependencies to a target directory.
 
         Args:
             requirements: Path to a ``requirements.txt`` file.
             target: Path to a directory where dependencies will be installed.
+
+        Raises:
+            PipInstallFailedError: The subprocess used to run the commend
+                exited with an error.
 
         """
         target = Path(target) if not isinstance(target, Path) else target
@@ -54,8 +78,8 @@ class Pip(DependencyManager):
                 suppress_output=False,
             )
         except subprocess.CalledProcessError as exc:
-            LOGGER.error(exc.stderr)
-            raise
+            raise PipInstallFailedError from exc
+        return target
 
     @classmethod
     def generate_command(
@@ -85,7 +109,7 @@ class Pip(DependencyManager):
 
 
 def is_pip_project(
-    source_code: SourceCode, *, file_name: str = "requirements.txt"
+    source_code: Union[Path, SourceCode], *, file_name: str = "requirements.txt"
 ) -> bool:
     """Determine if source code is a pip project.
 
@@ -95,7 +119,7 @@ def is_pip_project(
             manager, this is configurable of pip.
 
     """
-    requirements_txt = source_code.root_directory / file_name
+    requirements_txt = source_code / file_name
 
     if requirements_txt.is_file():
         return True

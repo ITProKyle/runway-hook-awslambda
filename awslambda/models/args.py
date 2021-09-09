@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import DirectoryPath, validator
+from pydantic import DirectoryPath, Extra, validator
 from runway.cfngin.hooks.base import HookArgsBaseModel
 
 
@@ -50,3 +50,8 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
     extend_pip_args: Optional[List[str]] = None
     use_pipenv: bool = True
     use_poetry: bool = True
+
+    class Config:
+        """Model configuration."""
+
+        extra = Extra.forbid

@@ -8,7 +8,8 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.8"
 
-runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
+# runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
+runway = "^2.4.0"
 tomli = "^1.2.1"
 igittigitt = "^2.0.4"
 
@@ -29,9 +30,13 @@ pre-commit = "^2.15.0"
 pydocstyle = "^6.1.1"
 pylint = "!=2.8.3,<2.11"  # 2.9 is broken; 2.8.3 locks down astriod too much
 pytest = "^6.2.2"
-pytest-cov = "^2.12.1"
-pytest-mock = "^3.5.1"
+pytest-cov = "^2.12.1"  # pytest plugin
+pytest-mock = "^3.5.1"  # pytest plugin
+pytest-order = "^1.0.0"  # pytest plugin
+pytest-sugar = "^0.9.4"  # pytest plugin
+pytest-xdist = "^2.3.0"  # pytest plugin
 recommonmark = "^0.7"
+tomli-w = "^0.3.0"  # TODO add to runway
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -68,6 +73,28 @@ skip = [
   "build",
   "dist",
   "node_modules",
+]
+
+
+[tool.coverage.report]
+exclude_lines = [
+  "cov: ignore",  # standard exclude comment
+  "if TYPE_CHECKING:",  # excluded blocks
+  "if __name__ == .__main__.:",
+  "raise AssertionError",  # defensive exceptions
+  "raise NotImplementedError",
+  "from pathlib import Path",
+  "@overload",
+]
+fail_under = 85
+precision = 2
+show_missing = true
+
+
+[tool.coverage.run]
+omit = [
+  "*/compat.py",
+  "*/type_defs.py",
 ]
 
 
@@ -124,3 +151,22 @@ notes = [
 msg-template = "{path}:{line}:{column}: {msg_id}: {msg} ({symbol})"
 output-format = "colorized"
 score = "yes"
+
+
+[tool.pytest.ini_options]
+addopts = [
+  "--cov-config=pyproject.toml",
+  "--no-cov-on-fail",
+]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::pytest_mock.PytestMockWarning",
+]
+markers = [
+  "wip: isolate tests currently being worked on.",
+]
+minversion = 6.0
+python_classes = ["Test*"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+testpaths = ["tests"]
