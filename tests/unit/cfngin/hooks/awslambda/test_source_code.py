@@ -80,10 +80,13 @@ class TestSourceCode:
         (tmp_path / "dir").mkdir()
 
         gitignore_filter = Mock(match=Mock(side_effect=[False, True]))
-        assert list(iter(SourceCode(tmp_path, gitignore_filter=gitignore_filter))) == [
-            file0
-        ]
-        gitignore_filter.match.assert_has_calls([call(file0), call(file1)])
+        assert (
+            len(list(iter(SourceCode(tmp_path, gitignore_filter=gitignore_filter))))
+            == 1
+        )
+        gitignore_filter.match.assert_has_calls(
+            [call(file0), call(file1)], any_order=True
+        )
 
     def test___str__(self, tmp_path: Path) -> None:
         """Test __str__."""
