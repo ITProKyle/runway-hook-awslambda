@@ -26,8 +26,6 @@ class PythonDeploymentPackage(DeploymentPackage[PythonProject]):
 
         # TODO make this configurable
         gitignore_filter.add_rule("**/__pycache__*", self.project.dependency_directory)
-        gitignore_filter.add_rule(
-            "**/*.dist-info***/*.dist-info*", self.project.dependency_directory
-        )
+        gitignore_filter.add_rule("**/*.dist-info*", self.project.dependency_directory)
         gitignore_filter.add_rule("**/*.py[c|o]", self.project.dependency_directory)
         return gitignore_filter
