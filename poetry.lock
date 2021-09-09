@@ -1620,6 +1620,14 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "tomli-w"
+version = "0.3.0"
+description = "A lil' TOML writer"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "troposphere"
 version = "2.7.1"
 description = "AWS CloudFormation creation library"
@@ -1723,7 +1731,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "ec4c2efeae5968b5777637bc2f9d9513e159ba65611fbd804e6c2b627372d345"
+content-hash = "39f2fd63e1c270ac8cfb8e95a9296b9e24cc496018fea62773c63e98922b8246"
 
 [metadata.files]
 alabaster = [
@@ -2450,6 +2458,10 @@ toml = [
 tomli = [
     {file = "tomli-1.2.1-py3-none-any.whl", hash = "sha256:8dd0e9524d6f386271a36b41dbf6c57d8e32fd96fd22b6584679dc569d20899f"},
     {file = "tomli-1.2.1.tar.gz", hash = "sha256:a5b75cb6f3968abb47af1b40c1819dc519ea82bcc065776a866e8d74c5ca9442"},
+]
+tomli-w = [
+    {file = "tomli_w-0.3.0-py3-none-any.whl", hash = "sha256:b33994e455a627ff4b291328d0ccbb679782dc1b3bd002c123c27b5ee19ca490"},
+    {file = "tomli_w-0.3.0.tar.gz", hash = "sha256:207c5f05803aec5a9a578c6aca5c1bbbba9783ad88461f3e180eb8c3c3c48a4b"},
 ]
 troposphere = [
     {file = "troposphere-2.7.1.tar.gz", hash = "sha256:ea2e5f2f82c224eaa1414a008b1939aae124c3e3e1dd993301968f155b333bd7"},

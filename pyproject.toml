@@ -36,6 +36,7 @@ pytest-order = "^1.0.0"  # pytest plugin
 pytest-sugar = "^0.9.4"  # pytest plugin
 pytest-xdist = "^2.3.0"  # pytest plugin
 recommonmark = "^0.7"
+tomli-w = "^0.3.0"  # TODO add to runway
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
