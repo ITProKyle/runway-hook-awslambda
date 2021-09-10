@@ -47,6 +47,7 @@ class TestAwsLambdaHook:
                 code_sha256="sha256",
                 object_key="key",
                 object_version_id="version",
+                runtime="runtime",
             ),
         )
         deployment_package.bucket.name = "test-bucket"
@@ -55,6 +56,7 @@ class TestAwsLambdaHook:
             "code_sha256": deployment_package.code_sha256,
             "object_key": deployment_package.object_key,
             "object_version_id": deployment_package.object_version_id,
+            "runtime": deployment_package.runtime,
         }
 
     def test_build_response_destroy(self, cfngin_context: CfnginContext) -> None:
@@ -294,6 +296,11 @@ class TestProject:
         """Test install_dependencies."""
         with pytest.raises(NotImplementedError):
             assert Project(Mock(), cfngin_context).install_dependencies()
+
+    def test_runtime(self) -> None:
+        """Test runtime."""
+        args = Mock(runtime="runtime")
+        assert Project(args, Mock()).runtime == args.runtime
 
     def test_source_code(
         self, cfngin_context: CfnginContext, mocker: MockerFixture

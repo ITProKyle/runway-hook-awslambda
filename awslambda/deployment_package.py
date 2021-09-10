@@ -99,6 +99,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     META_TAGS: ClassVar[Dict[str, str]] = {
         "code_sha256": "runway.cfngin:awslambda.code_sha256",
         "md5_checksum": "runway.cfngin:awslambda.md5_checksum",
+        "runtime": "runway.cfngin:awslambda.runtime",
         "source_code.hash": "runway.cfngin:awslambda.source_code.hash",
     }
     ZIPFILE_PERMISSION_MASK: ClassVar[int] = (
@@ -208,6 +209,11 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             return None
         return self._put_object_response["VersionId"]
 
+    @cached_property
+    def runtime(self) -> str:
+        """Runtime of the deployment package."""
+        return self.project.runtime
+
     def build(self) -> Path:
         """Build the deployment package."""
         if self.exists:
@@ -301,6 +307,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         metadata = {
             self.META_TAGS["code_sha256"]: self.code_sha256,
             self.META_TAGS["md5_checksum"]: self.md5_checksum,
+            self.META_TAGS["runtime"]: self.runtime,
             self.META_TAGS["source_code.hash"]: self.project.source_code.md5_hash,
         }
         tags = {**self.project.ctx.tags, **self.project.args.tags, **metadata}
@@ -478,6 +485,21 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         if not self.head or "VersionId" not in self.head:
             return None
         return self.head["VersionId"]
+
+    @cached_property
+    def runtime(self) -> str:
+        """Runtime of the deployment package.
+
+        Raises:
+            RequiredTagNotFound: A required tag was not found.
+
+        """
+        if self.META_TAGS["runtime"] not in self.object_tags:
+            raise RequiredTagNotFound(
+                self.bucket.format_bucket_path_uri(key=self.object_key),
+                self.META_TAGS["runtime"],
+            )
+        return self.object_tags[self.META_TAGS["runtime"]]
 
     def build(self) -> Path:
         """Build the deployment package."""

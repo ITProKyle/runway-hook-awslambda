@@ -19,6 +19,7 @@ class TestAwsLambdaHookDeployResponse:
                 code_sha256="sha256",
                 invalid=True,
                 object_key="key",
+                runtime="test",
             )
         errors = excinfo.value.errors()
         assert len(errors) == 1

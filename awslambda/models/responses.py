@@ -16,6 +16,7 @@ class AwsLambdaHookDeployResponse(BaseModel):
         object_key: Key (file path) of the deployment package S3 Object.
         object_version_id: The version ID of the deployment package S3 Object.
             This will only have a value if the S3 Bucket has versioning enabled.
+        runtime: Runtime of the Lambda Function.
 
     """
 
@@ -23,6 +24,7 @@ class AwsLambdaHookDeployResponse(BaseModel):
     code_sha256: str = Field(..., alias="CodeSha256")
     object_key: str = Field(..., alias="S3Key")
     object_version_id: Optional[str] = Field(None, alias="S3ObjectVersion")
+    runtime: str = Field(..., alias="Runtime")
 
     class Config:
         """Model configuration."""

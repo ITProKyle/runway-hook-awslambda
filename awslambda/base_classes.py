@@ -201,6 +201,11 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         return result
 
     @cached_property
+    def runtime(self) -> str:
+        """Runtime of the deployment package."""
+        return self.args.runtime
+
+    @cached_property
     def source_code(self) -> SourceCode:
         """Project source code.
 
@@ -297,6 +302,7 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             code_sha256=self.deployment_package.code_sha256,
             object_key=self.deployment_package.object_key,
             object_version_id=self.deployment_package.object_version_id,
+            runtime=self.deployment_package.runtime,
         )
 
     def _build_response_destroy(self) -> Optional[BaseModel]:

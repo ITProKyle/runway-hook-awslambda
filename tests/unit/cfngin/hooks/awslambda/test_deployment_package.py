@@ -212,6 +212,7 @@ class TestDeploymentPackage:
             **project.ctx.tags,
             DeploymentPackage.META_TAGS["code_sha256"]: code_sha256,
             DeploymentPackage.META_TAGS["md5_checksum"]: md5_checksum,
+            DeploymentPackage.META_TAGS["runtime"]: project.runtime,
             DeploymentPackage.META_TAGS["source_code.hash"]: source_md5_hash,
         }
 
@@ -327,6 +328,10 @@ class TestDeploymentPackage:
         mocker.patch.object(DeploymentPackage, "_put_object_response", response)
         obj = DeploymentPackage(project)
         assert obj.object_version_id == expected
+
+    def test_runtime(self, project: ProjectTypeAlias) -> None:
+        """Test runtime."""
+        assert DeploymentPackage(project).runtime == project.runtime
 
     @pytest.mark.parametrize("build", [False, True])
     def test_upload(
@@ -618,6 +623,36 @@ class TestDeploymentPackageS3Object:
         """Test object_version_id."""
         mocker.patch.object(DeploymentPackageS3Object, "head", head)
         assert DeploymentPackageS3Object(project).object_version_id == expected
+
+    def test_runtime(self, project: ProjectTypeAlias, mocker: MockerFixture) -> None:
+        """Test runtime."""
+        expected = "foobar"
+        mocker.patch.object(
+            DeploymentPackageS3Object,
+            "object_tags",
+            {DeploymentPackageS3Object.META_TAGS["runtime"]: expected},
+        )
+        assert DeploymentPackageS3Object(project).runtime == expected
+
+    def test_runtime_raise_required_tag_not_found(
+        self,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+    ) -> None:
+        """Test runtime."""
+        mocker.patch.object(DeploymentPackageS3Object, "object_tags", {})
+        bucket = mocker.patch.object(
+            DeploymentPackageS3Object,
+            "bucket",
+            Mock(format_bucket_path_uri=Mock(return_value="uri")),
+        )
+        object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
+
+        with pytest.raises(RequiredTagNotFound) as excinfo:
+            assert DeploymentPackageS3Object(project).runtime
+        bucket.format_bucket_path_uri.assert_called_once_with(key=object_key)
+        assert excinfo.value.resource == bucket.format_bucket_path_uri.return_value
+        assert excinfo.value.tag_key == DeploymentPackageS3Object.META_TAGS["runtime"]
 
     @pytest.mark.parametrize("build", [False, True])
     def test_upload(
