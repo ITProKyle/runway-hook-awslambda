@@ -2,6 +2,7 @@
 # pylint: disable=no-self-argument,no-self-use
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -32,7 +33,7 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     runtime: str
     source_code: DirectoryPath
 
-    @validator("source_code")
+    @validator("source_code", allow_reuse=True)
     def _resolve_path(cls, v: Path) -> Path:
         return v.resolve()
 
@@ -40,7 +41,7 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 class PythonFunctionHookArgs(AwsLambdaHookArgs):
     """Hook arguments for a Python function.
 
-    Args:
+    Attributes:
         extend_pip_args: Additional arguments that should be passed to pip.
         use_pipenv: Whether pipenv should be used if determined appropriate.
         use_poetry: Whether poetry should be used if determined appropriate.
@@ -48,6 +49,7 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
     """
 
     extend_pip_args: Optional[List[str]] = None
+    runtime: str = f"python{sys.version_info.major}.{sys.version_info.minor}"
     use_pipenv: bool = True
     use_poetry: bool = True
 

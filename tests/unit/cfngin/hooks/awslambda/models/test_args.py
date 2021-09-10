@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+from mock import Mock
 from pydantic import ValidationError
 
 from awslambda.models.args import AwsLambdaHookArgs, PythonFunctionHookArgs
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+MODULE = "awslambda.models.args"
 
 
 class TestAwsLambdaHookArgs:
@@ -99,3 +106,15 @@ class TestPythonFunctionHookArgs:
         assert not obj.extend_pip_args
         assert obj.use_pipenv
         assert obj.use_poetry
+
+    def test_runtime_from_sys(self, mocker: MockerFixture) -> None:
+        """Test infer runtime from environment."""
+        major = 3
+        minor = 9
+        mocker.patch(f"{MODULE}.sys", version_info=Mock(major=major, minor=minor))
+        assert (
+            PythonFunctionHookArgs(
+                bucket_name="test-bucket", function_name="name", source_code="./"
+            ).runtime
+            == f"python{major}.{minor}"
+        )
