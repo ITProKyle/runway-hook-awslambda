@@ -2,12 +2,15 @@
 # pylint: disable=no-self-use,protected-access
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from awslambda.models.args import AwsLambdaHookArgs, PythonFunctionHookArgs
+
+MODULE = "awslambda.models.args"
 
 
 class TestAwsLambdaHookArgs:
@@ -80,7 +83,6 @@ class TestPythonFunctionHookArgs:
                 bucket_name="test-bucket",
                 function_name="name",
                 invalid=True,
-                runtime="test",
                 source_code=tmp_path,
             )
         errors = excinfo.value.errors()
@@ -93,9 +95,9 @@ class TestPythonFunctionHookArgs:
         obj = PythonFunctionHookArgs(  # these are all required fields
             bucket_name="test-bucket",
             function_name="name",
-            runtime="test",
             source_code=tmp_path,
         )
         assert not obj.extend_pip_args
+        assert obj.runtime == f"python{sys.version_info.major}.{sys.version_info.minor}"
         assert obj.use_pipenv
         assert obj.use_poetry
