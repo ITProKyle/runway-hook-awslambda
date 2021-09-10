@@ -235,12 +235,22 @@ class TestDeploymentPackage:
         self, mocker: MockerFixture, project: ProjectTypeAlias
     ) -> None:
         """Test code_sha256."""
-        mock_calculate_lambda_code_sha256 = mocker.patch(
-            f"{MODULE}.calculate_lambda_code_sha256", return_value="sha256"
+        archive_file = mocker.patch.object(
+            DeploymentPackage, "archive_file", "archive_file"
         )
-        obj = DeploymentPackage(project)
-        assert obj.code_sha256 == mock_calculate_lambda_code_sha256.return_value
-        mock_calculate_lambda_code_sha256.assert_called_once_with(obj.archive_file)
+        file_hash = Mock(digest="digest")
+        mock_b64encode = mocker.patch("base64.b64encode", return_value=b"success")
+        mock_file_hash_class = mocker.patch(
+            f"{MODULE}.FileHash", return_value=file_hash
+        )
+        mock_sha256 = mocker.patch("hashlib.sha256")
+        assert (
+            DeploymentPackage(project).code_sha256
+            == mock_b64encode.return_value.decode()
+        )
+        mock_file_hash_class.assert_called_once_with(mock_sha256.return_value)
+        file_hash.add_file.assert_called_once_with(archive_file)
+        mock_b64encode.assert_called_once_with(file_hash.digest)
 
     @pytest.mark.parametrize("should_exist", [False, True])
     def test_exists(self, project: ProjectTypeAlias, should_exist: bool) -> None:
@@ -292,12 +302,22 @@ class TestDeploymentPackage:
         self, mocker: MockerFixture, project: ProjectTypeAlias
     ) -> None:
         """Test md5_checksum."""
-        mock_calculate_s3_content_md5 = mocker.patch(
-            f"{MODULE}.calculate_s3_content_md5", return_value="md5"
+        archive_file = mocker.patch.object(
+            DeploymentPackage, "archive_file", "archive_file"
         )
-        obj = DeploymentPackage(project)
-        assert obj.md5_checksum == mock_calculate_s3_content_md5.return_value
-        mock_calculate_s3_content_md5.assert_called_once_with(obj.archive_file)
+        file_hash = Mock(digest="digest")
+        mock_b64encode = mocker.patch("base64.b64encode", return_value=b"success")
+        mock_file_hash_class = mocker.patch(
+            f"{MODULE}.FileHash", return_value=file_hash
+        )
+        mock_md5 = mocker.patch("hashlib.md5")
+        assert (
+            DeploymentPackage(project).md5_checksum
+            == mock_b64encode.return_value.decode()
+        )
+        mock_file_hash_class.assert_called_once_with(mock_md5.return_value)
+        file_hash.add_file.assert_called_once_with(archive_file)
+        mock_b64encode.assert_called_once_with(file_hash.digest)
 
     @pytest.mark.parametrize("object_prefix", [None, "bar", "/bar/", "/bar/foo/"])
     def test_object_key(

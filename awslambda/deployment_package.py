@@ -24,6 +24,7 @@ from urllib.parse import urlencode
 
 from runway.compat import cached_property
 from runway.core.providers.aws.s3 import Bucket
+from runway.utils import FileHash
 from typing_extensions import Literal
 
 from .base_classes import Project
@@ -41,43 +42,6 @@ LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
 
 _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
-
-
-# TODO move to runway.utils or similar
-def calculate_lambda_code_sha256(file_path: Path) -> str:  # cov: ignore
-    """Calculate the CodeSha256 of a deployment package.
-
-    Returns:
-        Value to pass to CloudFormation ``AWS::Lambda::Version.CodeSha256``.
-
-    """
-    file_hash = hashlib.sha256()
-    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
-    with open(file_path, "rb") as buf:
-        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
-        chunk = buf.read(read_size)  # seed chunk with initial value
-        while chunk:
-            file_hash.update(chunk)
-            chunk = buf.read(read_size)  # read in new chunk
-    return base64.b64encode(file_hash.digest()).decode()
-
-
-# TODO move to runway.utils or similar
-def calculate_s3_content_md5(file_path: Path) -> str:  # cov: ignore
-    """Calculate the ContentMD5 value for a file being uploaded to AWS S3.
-
-    Value will be the base64 encoded.
-
-    """
-    file_hash = hashlib.md5()
-    read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
-    with open(file_path, "rb") as buf:
-        # python 3.7 compatable version of `while chunk := buf.read(read_size):`
-        chunk = buf.read(read_size)  # seed chunk with initial value
-        while chunk:
-            file_hash.update(chunk)
-            chunk = buf.read(read_size)  # read in new chunk
-    return base64.b64encode(file_hash.digest()).decode()
 
 
 class DeploymentPackage(Generic[_ProjectTypeVar]):
@@ -150,7 +114,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             FileNotFoundError: Property accessed before archive file has been built.
 
         """
-        return calculate_lambda_code_sha256(self.archive_file)
+        file_hash = FileHash(hashlib.sha256())
+        file_hash.add_file(self.archive_file)
+        return base64.b64encode(file_hash.digest).decode()
 
     @cached_property
     def exists(self) -> bool:
@@ -181,7 +147,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             FileNotFoundError: Property accessed before archive file has been built.
 
         """
-        return calculate_s3_content_md5(self.archive_file)
+        file_hash = FileHash(hashlib.md5())
+        file_hash.add_file(self.archive_file)
+        return base64.b64encode(file_hash.digest).decode()
 
     @cached_property
     def object_key(self) -> str:
