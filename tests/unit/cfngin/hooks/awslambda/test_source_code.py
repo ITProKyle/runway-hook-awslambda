@@ -2,13 +2,11 @@
 # pylint: disable=no-self-use,protected-access,redefined-outer-name
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from mock import Mock, call
-from runway.utils import FileHash
 
 from awslambda.source_code import SourceCode
 
@@ -122,16 +120,16 @@ class TestSourceCode:
 
     def test_md5_hash(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test md5_hash."""
-        file0 = tmp_path / "test.txt"
-        file0.write_text("foobar")
-        expected = FileHash(hashlib.md5())
-        expected.add_files([file0], relative_to=tmp_path)
-        mock_sorted = mocker.patch.object(SourceCode, "sorted", return_value=[file0])
-
-        assert (
-            SourceCode(tmp_path, gitignore_filter=Mock()).md5_hash == expected.hexdigest
+        file_hash = Mock(hexdigest="success")
+        mock_file_hash_class = mocker.patch(
+            f"{MODULE}.FileHash", return_value=file_hash
         )
-        mock_sorted.assert_called_once_with()
+        mock_md5 = mocker.patch("hashlib.md5")
+        assert (
+            SourceCode(tmp_path, gitignore_filter=Mock()).md5_hash
+            == file_hash.hexdigest
+        )
+        mock_file_hash_class.assert_called_once_with(mock_md5.return_value)
 
     @pytest.mark.parametrize("reverse", [False, True])
     def test_sorted(self, mocker: MockerFixture, reverse: bool, tmp_path: Path) -> None:

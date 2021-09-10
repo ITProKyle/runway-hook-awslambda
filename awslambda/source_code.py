@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Iterator, List, Optional, Union
 
 import igittigitt
 from runway.compat import cached_property
+from runway.utils import FileHash
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -65,20 +66,9 @@ class SourceCode:
         The implimentation tries to conserve memory as much as possible.
 
         """
-        file_hash = hashlib.md5()
-        read_size = 1024 * 10_000_000  # 10mb - number of bytes in each read operation
-        for source_file in self.sorted():
-            file_hash.update(
-                (str(source_file.relative_to(self.root_directory)) + "\0").encode()
-            )
-            with open(source_file, "rb") as buf:
-                # python 3.7 compatable version of `while chunk := buf.read(read_size):`
-                chunk = buf.read(read_size)  # seed chunk with initial value
-                while chunk:
-                    file_hash.update(chunk)
-                    chunk = buf.read(read_size)  # read in new chunk
-                file_hash.update("\0".encode())  # end of file contents
-        return file_hash.hexdigest()
+        file_hash = FileHash(hashlib.md5())
+        file_hash.add_files(self.sorted(), relative_to=self.root_directory)
+        return file_hash.hexdigest
 
     def add_filter_rule(self, pattern: str) -> None:
         """Add rule to ignore filter.
