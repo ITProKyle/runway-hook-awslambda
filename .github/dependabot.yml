@@ -25,7 +25,9 @@ updates:
   - directory: /
     ignore:
       - dependency-name: boto3
+      - dependency-name: boto3-stubs
       - dependency-name: botocore
+      - dependency-name: mypy-boto3
     labels:
       - dependencies
       - poetry

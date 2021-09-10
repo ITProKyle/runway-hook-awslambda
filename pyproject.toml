@@ -8,10 +8,14 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.8"
 
+igittigitt = "^2.0.4"
+pygments = { version = "^2.10.0", optional = true }  # docs
+recommonmark = { version = "^0.7.1", optional = true }  # docs
 # runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
 runway = "^2.4.0"
+sphinx = { version = "^4.1.2", optional = true }  # docs
+sphinx-rtd-theme = { version = "^0.5.2", optional = true }  # docs
 tomli = "^1.2.1"
-igittigitt = "^2.0.4"
 
 [tool.poetry.dev-dependencies]
 black = "21.7b0"
@@ -37,6 +41,14 @@ pytest-sugar = "^0.9.4"  # pytest plugin
 pytest-xdist = "^2.3.0"  # pytest plugin
 recommonmark = "^0.7"
 tomli-w = "^0.3.0"  # TODO add to runway
+
+[tool.poetry.extras]
+docs = [
+  "pygments",
+  "recommonmark",
+  "sphinx",
+  "sphinx-rtd-theme",
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

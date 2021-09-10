@@ -15,14 +15,10 @@ clean:
 	@rm -rf source/apidocs/*
 	@echo "Removed apidocs from previous build"
 
-docs: clean html open
+docs: clean html
 
 open:
 	@open build/html/index.html
-
-requirements:  # updates requirements.txt
-	@poetry export --format requirements.txt --without-hashes | sed "/file:\/\/\//d" > requirements.txt
-	@echo "requirements.txt has been updated"
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
