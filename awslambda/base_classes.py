@@ -257,7 +257,7 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
         This is required to set the value of the args attribute.
 
         Args:
-            context: CFNgin context object.
+            context: CFNgin context object (passed in by CFNgin).
 
         """
         self.ctx = context

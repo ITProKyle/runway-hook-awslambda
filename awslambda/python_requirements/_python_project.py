@@ -13,9 +13,12 @@ from ..constants import BASE_WORK_DIR
 from ..models.args import PythonFunctionHookArgs
 from .dependency_managers import (
     Pip,
+    Pipenv,
+    PipenvNotFoundError,
     Poetry,
     PoetryNotFoundError,
     is_pip_project,
+    is_pipenv_project,
     is_poetry_project,
 )
 
@@ -61,6 +64,20 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         return Pip(self.ctx, self.source_code)
 
     @cached_property
+    def pipenv(self) -> Optional[Pipenv]:
+        """Pipenv dependency manager."""
+        if not is_pipenv_project(self.source_code):
+            return None
+        if not self.args.use_pipenv:
+            LOGGER.warning(
+                "pipenv project detected but use of pipenv is explicitly disabled"
+            )
+            return None
+        if not Pipenv.found_in_path():
+            raise PipenvNotFoundError
+        return Pipenv(self.ctx, self.source_code)
+
+    @cached_property
     def poetry(self) -> Optional[Poetry]:
         """Poetry dependency manager.
 
@@ -86,8 +103,10 @@ class PythonProject(Project[PythonFunctionHookArgs]):
     @cached_property
     def requirements_txt(self) -> Path:
         """Dependency file for the project."""
-        if self.poetry:
+        if self.poetry:  # prioritize poetry
             return self.poetry.export(output=self.tmp_requirements_txt)
+        if self.pipenv:
+            return self.pipenv.export(output=self.tmp_requirements_txt)
         requirements_txt = self.source_code / "requirements.txt"
         if is_pip_project(self.source_code, file_name=requirements_txt.name):
             return requirements_txt
@@ -104,7 +123,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
 
     def cleanup(self) -> None:
         """Cleanup temporary files after the build process has run."""
-        if self.poetry and self.tmp_requirements_txt.exists():
+        if (self.poetry or self.pipenv) and self.tmp_requirements_txt.exists():
             self.tmp_requirements_txt.unlink()
         shutil.rmtree(self.dependency_directory, ignore_errors=True)
 
