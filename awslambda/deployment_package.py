@@ -88,9 +88,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     @cached_property
     def archive_file(self) -> Path:
         """Path to archive file."""
-        return (
-            self.project.build_directory
-            / f"{self.project.args.function_name}.{self.project.source_code.md5_hash}.zip"
+        return self.project.build_directory / (
+            f"{self.project.source_code.root_directory.name}."
+            f"{self.project.source_code.md5_hash}.zip"
         )
 
     @cached_property
@@ -154,7 +154,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     @cached_property
     def object_key(self) -> str:
         """Key to use when upload object to AWS S3."""
-        prefix = "awslambda/functions"
+        prefix = f"awslambda/functions/{self.project.runtime}"
         if self.project.args.object_prefix:
             prefix = (
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"

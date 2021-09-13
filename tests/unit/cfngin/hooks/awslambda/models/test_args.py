@@ -20,7 +20,6 @@ class TestAwsLambdaHookArgs:
         """Test _resolve_path."""
         obj = AwsLambdaHookArgs(  # these are all required fields
             bucket_name="test-bucket",
-            function_name="name",
             runtime="test",
             source_code="./",
         )
@@ -31,7 +30,6 @@ class TestAwsLambdaHookArgs:
         """Test field defaults."""
         obj = AwsLambdaHookArgs(  # these are all required fields
             bucket_name="test-bucket",
-            function_name="name",
             runtime="test",
             source_code=tmp_path,
         )
@@ -45,7 +43,6 @@ class TestAwsLambdaHookArgs:
         with pytest.raises(ValidationError) as excinfo:
             AwsLambdaHookArgs(  # these are all required fields
                 bucket_name="test-bucket",
-                function_name="name",
                 runtime="test",
                 source_code=source_path,
             )
@@ -60,7 +57,6 @@ class TestAwsLambdaHookArgs:
         with pytest.raises(ValidationError) as excinfo:
             AwsLambdaHookArgs(  # these are all required fields
                 bucket_name="test-bucket",
-                function_name="name",
                 runtime="test",
                 source_code=source_path,
             )
@@ -80,7 +76,6 @@ class TestPythonFunctionHookArgs:
         """Test extra fields."""
         obj = PythonFunctionHookArgs(
             bucket_name="test-bucket",
-            function_name="name",
             invalid=True,
             source_code=tmp_path,
         )
@@ -90,7 +85,6 @@ class TestPythonFunctionHookArgs:
         """Test field defaults."""
         obj = PythonFunctionHookArgs(  # these are all required fields
             bucket_name="test-bucket",
-            function_name="name",
             source_code=tmp_path,
         )
         assert not obj.extend_pip_args

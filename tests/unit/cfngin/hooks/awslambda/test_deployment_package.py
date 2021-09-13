@@ -38,7 +38,6 @@ def project(cfngin_context: CfnginContext, tmp_path: Path) -> ProjectTypeAlias:
     """Mock project object."""
     args = AwsLambdaHookArgs(
         bucket_name="test-bucket",
-        function_name="test-function",
         runtime="foobar3.9",
         source_code=tmp_path,
     )
@@ -131,7 +130,7 @@ class TestDeploymentPackage:
         assert obj.archive_file.parent == project.build_directory
         assert (
             obj.archive_file.name
-            == f"{project.args.function_name}.{project.source_code.md5_hash}.zip"
+            == f"{project.source_code.root_directory.name}.{project.source_code.md5_hash}.zip"
         )
 
     def test_bucket(self, mocker: MockerFixture, project: ProjectTypeAlias) -> None:
@@ -328,10 +327,11 @@ class TestDeploymentPackage:
         obj = DeploymentPackage(project)
         if object_prefix:
             expected_prefix = (
-                f"awslambda/functions/{object_prefix.lstrip('/').rstrip('/')}"
+                f"awslambda/functions/{project.runtime}/"
+                f"{object_prefix.lstrip('/').rstrip('/')}"
             )
         else:
-            expected_prefix = "awslambda/functions"
+            expected_prefix = f"awslambda/functions/{project.runtime}"
         assert obj.object_key == f"{expected_prefix}/{obj.archive_file.name}"
 
     @pytest.mark.parametrize(
