@@ -78,17 +78,13 @@ class TestPythonFunctionHookArgs:
 
     def test_extra(self, tmp_path: Path) -> None:
         """Test extra fields."""
-        with pytest.raises(ValidationError) as excinfo:
-            PythonFunctionHookArgs(
-                bucket_name="test-bucket",
-                function_name="name",
-                invalid=True,
-                source_code=tmp_path,
-            )
-        errors = excinfo.value.errors()
-        assert len(errors) == 1
-        assert errors[0]["loc"] == ("invalid",)
-        assert errors[0]["msg"] == "extra fields not permitted"
+        obj = PythonFunctionHookArgs(
+            bucket_name="test-bucket",
+            function_name="name",
+            invalid=True,
+            source_code=tmp_path,
+        )
+        assert not obj.get("invalid")
 
     def test_field_defaults(self, tmp_path: Path) -> None:
         """Test field defaults."""

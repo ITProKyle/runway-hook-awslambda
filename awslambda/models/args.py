@@ -56,4 +56,4 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
     class Config:
         """Model configuration."""
 
-        extra = Extra.forbid
+        extra = Extra.ignore
