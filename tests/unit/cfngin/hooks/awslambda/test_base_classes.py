@@ -265,46 +265,42 @@ class TestProject:
         assert obj.args == args
         assert obj.ctx == cfngin_context
 
-    def test_build_directory(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_build_directory(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test build_directory."""
-        mocker.patch.object(Project, "source_code", Mock(md5_hash="hash"))
+        mocker.patch.object(
+            Project, "source_code", Mock(md5_hash="hash", root_directory=tmp_path)
+        )
         mocker.patch(f"{MODULE}.BASE_WORK_DIR", tmp_path)
-        expected = tmp_path / "foo.hash"
+        expected = tmp_path / "bar" / f"{tmp_path.name}.hash"
 
-        obj = Project(Mock(function_name="foo"), cfngin_context)
+        obj = Project(Mock(runtime="bar"), Mock())
         assert obj.build_directory == expected
         assert expected.is_dir()
 
-    def test_cleanup(self, cfngin_context: CfnginContext) -> None:
+    def test_cleanup(self) -> None:
         """Test cleanup. Should do nothing."""
-        assert not Project(Mock(), cfngin_context).cleanup()
+        assert not Project(Mock(), Mock()).cleanup()
 
-    def test_dependency_directory(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_dependency_directory(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test dependency_directory."""
         mocker.patch.object(Project, "build_directory", tmp_path)
         expected = tmp_path / "dependencies"
 
-        obj = Project(Mock(), cfngin_context)
+        obj = Project(Mock(), Mock())
         assert obj.dependency_directory == expected
         assert expected.is_dir()
 
-    def test_install_dependencies(self, cfngin_context: CfnginContext) -> None:
+    def test_install_dependencies(self) -> None:
         """Test install_dependencies."""
         with pytest.raises(NotImplementedError):
-            assert Project(Mock(), cfngin_context).install_dependencies()
+            assert Project(Mock(), Mock()).install_dependencies()
 
     def test_runtime(self) -> None:
         """Test runtime."""
         args = Mock(runtime="runtime")
         assert Project(args, Mock()).runtime == args.runtime
 
-    def test_source_code(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture
-    ) -> None:
+    def test_source_code(self, mocker: MockerFixture) -> None:
         """Test source_code."""
         args = Mock(extend_gitignore=["rule0"], source_code="foo")
         source_code = Mock()
@@ -312,7 +308,7 @@ class TestProject:
             f"{MODULE}.SourceCode", Mock(return_value=source_code)
         )
 
-        obj = Project(args, cfngin_context)
+        obj = Project(args, Mock())
         assert obj.source_code == source_code
         source_code_base_class.assert_called_once_with(args.source_code)
         source_code.add_filter_rule.assert_called_once_with(args.extend_gitignore[0])

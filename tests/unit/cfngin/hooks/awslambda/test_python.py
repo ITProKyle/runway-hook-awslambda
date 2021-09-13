@@ -24,7 +24,6 @@ def args(tmp_path: Path) -> PythonFunctionHookArgs:
     """Fixture for creating default function args."""
     return PythonFunctionHookArgs(
         bucket_name="test-bucket",
-        function_name="test-function",
         runtime="python3.9",
         source_code=tmp_path,
     )

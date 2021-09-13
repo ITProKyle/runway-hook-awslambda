@@ -19,7 +19,6 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
         extend_gitignore: gitignore rules that should be added to the rules
             already defined in a ``.gitignore`` file in the source code directory.
             This can be used with or without an existing file.
-        function_name: Name of the lambda function.
         object_prefix: Prefix to add to the S3 Object key.
         runtime: Runtime of the Lambda Function.
         source_code: Path to the Lambda Function source code.
@@ -28,7 +27,6 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
     bucket_name: str
     extend_gitignore: List[str] = []
-    function_name: str
     object_prefix: Optional[str] = None
     runtime: str
     source_code: DirectoryPath
