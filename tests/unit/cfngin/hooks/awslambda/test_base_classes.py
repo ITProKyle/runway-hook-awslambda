@@ -295,6 +295,15 @@ class TestProject:
         with pytest.raises(NotImplementedError):
             assert Project(Mock(), Mock()).install_dependencies()
 
+    def test_metadata_files(self) -> None:
+        """Test metadata_files."""
+        assert Project(Mock(), Mock()).metadata_files == ()
+
+    def test_project_type(self) -> None:
+        """Test project_type."""
+        with pytest.raises(NotImplementedError):
+            assert Project(Mock(), Mock()).project_type
+
     def test_runtime(self) -> None:
         """Test runtime."""
         args = Mock(runtime="runtime")
@@ -303,6 +312,11 @@ class TestProject:
     def test_source_code(self, mocker: MockerFixture) -> None:
         """Test source_code."""
         args = Mock(extend_gitignore=["rule0"], source_code="foo")
+        metadata_files = mocker.patch.object(
+            Project,
+            "metadata_files",
+            ("foo", "bar"),
+        )
         source_code = Mock()
         source_code_base_class = mocker.patch(
             f"{MODULE}.SourceCode", Mock(return_value=source_code)
@@ -310,5 +324,7 @@ class TestProject:
 
         obj = Project(args, Mock())
         assert obj.source_code == source_code
-        source_code_base_class.assert_called_once_with(args.source_code)
+        source_code_base_class.assert_called_once_with(
+            args.source_code, include_files_in_hash=metadata_files
+        )
         source_code.add_filter_rule.assert_called_once_with(args.extend_gitignore[0])

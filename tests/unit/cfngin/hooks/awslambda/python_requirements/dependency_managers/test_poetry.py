@@ -24,6 +24,10 @@ if TYPE_CHECKING:
 class TestPoetry:
     """Test Poetry."""
 
+    def test_config_files(self) -> None:
+        """Test CONFIG_FILES."""
+        assert Poetry.CONFIG_FILES == ("poetry.lock", "pyproject.toml")
+
     @pytest.mark.parametrize(
         "export_kwargs",
         [

@@ -5,7 +5,7 @@ import hashlib
 import logging
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Iterator, List, Optional, Sequence, Union
 
 import igittigitt
 from runway.compat import cached_property
@@ -35,6 +35,7 @@ class SourceCode:
         root_directory: StrPath,
         *,
         gitignore_filter: Optional[igittigitt.IgnoreParser] = None,
+        include_files_in_hash: Optional[Sequence[Path]] = None,
     ) -> None:
         """Instantiate class.
 
@@ -42,8 +43,12 @@ class SourceCode:
             root_directory: The root directory containing the source code.
             gitignore_filter: Object that has been pre-populated with
                 rules/patterns to determine if a file should be ignored.
+            include_files_in_hash: Files that should be included in hash
+                calculation even if they are filtered by gitignore (e.g.
+                ``poetry.lock``).
 
         """
+        self._include_files_in_hash = include_files_in_hash or []
         self.gitignore_filter = gitignore_filter or igittigitt.IgnoreParser()
         self.root_directory = (
             root_directory if isinstance(root_directory, Path) else Path(root_directory)
@@ -63,11 +68,14 @@ class SourceCode:
         """Calculate the md5 hash of the directory contents.
 
         This can be resource intensive depending on the size of the project.
-        The implimentation tries to conserve memory as much as possible.
 
         """
+        sorted_files = list(self.sorted())
+        for include_file in self._include_files_in_hash:
+            if include_file not in sorted_files:
+                sorted_files.append(include_file)
         file_hash = FileHash(hashlib.md5())
-        file_hash.add_files(self.sorted(), relative_to=self.root_directory)
+        file_hash.add_files(sorted(sorted_files), relative_to=self.root_directory)
         return file_hash.hexdigest
 
     def add_filter_rule(self, pattern: str) -> None:

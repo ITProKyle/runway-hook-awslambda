@@ -26,6 +26,10 @@ if TYPE_CHECKING:
 class TestPip:
     """Test Pip."""
 
+    def test_config_files(self) -> None:
+        """Test CONFIG_FILES."""
+        assert Pip.CONFIG_FILES == ("requirements.txt",)
+
     @pytest.mark.parametrize("command", ["test", ["test"]])
     def test_generate_command(
         self,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import pytest
 from mock import Mock
@@ -12,11 +12,16 @@ from awslambda.python_requirements._python_project import (
     PythonProject,
     PythonRequirementsNotFoundError,
 )
-from awslambda.python_requirements.dependency_managers._pip import PipInstallFailedError
+from awslambda.python_requirements.dependency_managers._pip import (
+    Pip,
+    PipInstallFailedError,
+)
 from awslambda.python_requirements.dependency_managers._pipenv import (
+    Pipenv,
     PipenvNotFoundError,
 )
 from awslambda.python_requirements.dependency_managers._poetry import (
+    Poetry,
     PoetryNotFoundError,
 )
 
@@ -112,6 +117,37 @@ class TestPythonProject:
             requirements=requirements_txt, target=dependency_directory
         )
 
+    @pytest.mark.parametrize(
+        "project_type, expected_files",
+        [
+            ("pip", Pip.CONFIG_FILES),
+            ("pipenv", Pipenv.CONFIG_FILES),
+            ("pipenv", [Pipenv.CONFIG_FILES[1]]),
+            ("poetry", Poetry.CONFIG_FILES),
+            ("poetry", [Poetry.CONFIG_FILES[1]]),
+        ],
+    )
+    def test_metadata_files(
+        self,
+        expected_files: Sequence[str],
+        mocker: MockerFixture,
+        project_type: str,
+        tmp_path: Path,
+    ) -> None:
+        """Test metadata_files.
+
+        expected_files can be a subset of <class>.CONFIG_FILES to ensure that
+        return value only contains files that exist as these files are created.
+
+        """
+        expected = tuple(tmp_path / expected_file for expected_file in expected_files)
+        for expected_file in expected:
+            expected_file.touch()
+        mocker.patch.object(PythonProject, "project_type", project_type)
+        assert (
+            PythonProject(Mock(source_code=tmp_path), Mock()).metadata_files == expected
+        )
+
     def test_pip(self, mocker: MockerFixture) -> None:
         """Test pip."""
         ctx = Mock()
@@ -123,128 +159,136 @@ class TestPythonProject:
     def test_pipenv(self, mocker: MockerFixture) -> None:
         """Test pipenv."""
         ctx = Mock()
-        mock_is_pipenv_project = mocker.patch(
-            f"{MODULE}.is_pipenv_project", return_value=True
-        )
         pipenv_class = mocker.patch(
             f"{MODULE}.Pipenv",
             Mock(found_in_path=Mock(return_value=True), return_value="Pipenv"),
         )
+        mocker.patch.object(PythonProject, "project_type", "pipenv")
         source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "poetry", None)
         assert (
             PythonProject(Mock(use_poetry=True), ctx).pipenv
             == pipenv_class.return_value
         )
-        mock_is_pipenv_project.assert_called_once_with(source_code)
         pipenv_class.found_in_path.assert_called_once_with()
         pipenv_class.assert_called_once_with(ctx, source_code)
 
-    def test_pipenv_explicit_disable(
-        self, caplog: LogCaptureFixture, mocker: MockerFixture
-    ) -> None:
-        """Test pipenv project but pipenv is explicitly disabled."""
-        caplog.set_level(logging.WARNING)
-        mock_is_pipenv_project = mocker.patch(
-            f"{MODULE}.is_pipenv_project", return_value=True
-        )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "poetry", None)
-        assert not PythonProject(Mock(use_pipenv=False), Mock()).pipenv
-        mock_is_pipenv_project.assert_called_once_with(source_code)
-        assert (
-            "pipenv project detected but use of pipenv is explicitly disabled"
-            in caplog.messages
-        )
-
     def test_pipenv_not_in_path(self, mocker: MockerFixture) -> None:
         """Test pipenv not in path."""
-        mock_is_pipenv_project = mocker.patch(
-            f"{MODULE}.is_pipenv_project", return_value=True
-        )
         pipenv_class = mocker.patch(
             f"{MODULE}.Pipenv",
             Mock(found_in_path=Mock(return_value=False)),
         )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "poetry", None)
+        mocker.patch.object(PythonProject, "project_type", "pipenv")
+        mocker.patch.object(PythonProject, "source_code")
         with pytest.raises(PipenvNotFoundError):
             assert PythonProject(Mock(use_pipenv=True), Mock()).pipenv
-        mock_is_pipenv_project.assert_called_once_with(source_code)
         pipenv_class.found_in_path.assert_called_once_with()
 
-    def test_pipenv_not_poetry_pipenv(self, mocker: MockerFixture) -> None:
+    def test_pipenv_not_pipenv_project(self, mocker: MockerFixture) -> None:
         """Test pipenv project is not a pipenv project."""
-        mock_is_pipenv_project = mocker.patch(
-            f"{MODULE}.is_pipenv_project", return_value=False
-        )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "poetry", None)
+        mocker.patch.object(PythonProject, "project_type", "poetry")
+        mocker.patch.object(PythonProject, "source_code")
         assert not PythonProject(Mock(use_pipenv=True), Mock()).pipenv
-        mock_is_pipenv_project.assert_called_once_with(source_code)
 
     def test_poetry(self, mocker: MockerFixture) -> None:
         """Test poetry."""
         ctx = Mock()
-        mock_is_poetry_project = mocker.patch(
-            f"{MODULE}.is_poetry_project", return_value=True
-        )
         poetry_class = mocker.patch(
             f"{MODULE}.Poetry",
             Mock(found_in_path=Mock(return_value=True), return_value="Poetry"),
         )
+        mocker.patch.object(PythonProject, "project_type", "poetry")
         source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "pipenv", None)
         assert (
             PythonProject(Mock(use_poetry=True), ctx).poetry
             == poetry_class.return_value
         )
-        mock_is_poetry_project.assert_called_once_with(source_code)
         poetry_class.found_in_path.assert_called_once_with()
         poetry_class.assert_called_once_with(ctx, source_code)
 
-    def test_poetry_explicit_disable(
-        self, caplog: LogCaptureFixture, mocker: MockerFixture
-    ) -> None:
-        """Test poetry project but poetry is explicitly disabled."""
-        caplog.set_level(logging.WARNING)
-        mock_is_poetry_project = mocker.patch(
-            f"{MODULE}.is_poetry_project", return_value=True
-        )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "pipenv", None)
-        assert not PythonProject(Mock(use_poetry=False), Mock()).poetry
-        mock_is_poetry_project.assert_called_once_with(source_code)
-        assert (
-            "poetry project detected but use of poetry is explicitly disabled"
-            in caplog.messages
-        )
-
     def test_poetry_not_in_path(self, mocker: MockerFixture) -> None:
         """Test poetry not in path."""
-        mock_is_poetry_project = mocker.patch(
-            f"{MODULE}.is_poetry_project", return_value=True
-        )
         poetry_class = mocker.patch(
             f"{MODULE}.Poetry",
             Mock(found_in_path=Mock(return_value=False)),
         )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "pipenv", None)
+        mocker.patch.object(PythonProject, "project_type", "poetry")
+        mocker.patch.object(PythonProject, "source_code")
         with pytest.raises(PoetryNotFoundError):
             assert PythonProject(Mock(use_poetry=True), Mock()).poetry
-        mock_is_poetry_project.assert_called_once_with(source_code)
         poetry_class.found_in_path.assert_called_once_with()
 
     def test_poetry_not_poetry_project(self, mocker: MockerFixture) -> None:
         """Test poetry project is not a poetry project."""
-        mock_is_poetry_project = mocker.patch(
-            f"{MODULE}.is_poetry_project", return_value=False
-        )
-        source_code = mocker.patch.object(PythonProject, "source_code")
-        mocker.patch.object(PythonProject, "pipenv", None)
+        mocker.patch.object(PythonProject, "project_type", "pipenv")
+        mocker.patch.object(PythonProject, "source_code")
         assert not PythonProject(Mock(use_poetry=True), Mock()).poetry
-        mock_is_poetry_project.assert_called_once_with(source_code)
+
+    @pytest.mark.parametrize(
+        "pipenv_project, poetry_project, use_pipenv, use_poetry, expected",
+        [
+            (False, False, False, False, "pip"),
+            (False, False, False, True, "pip"),
+            (False, False, True, True, "pip"),
+            (False, True, False, False, "pip"),
+            (False, True, True, False, "pip"),
+            (True, False, False, False, "pip"),
+            (True, False, False, True, "pip"),
+            (True, True, False, False, "pip"),
+            (False, True, False, True, "poetry"),
+            (False, True, True, True, "poetry"),
+            (True, True, True, True, "poetry"),
+            (True, True, True, False, "pipenv"),
+            (True, False, True, False, "pipenv"),
+            (True, False, True, True, "pipenv"),
+        ],
+    )
+    def test_project_type(
+        self,
+        caplog: LogCaptureFixture,
+        expected: str,
+        mocker: MockerFixture,
+        pipenv_project: bool,
+        poetry_project: bool,
+        tmp_path: Path,
+        use_pipenv: bool,
+        use_poetry: bool,
+    ) -> None:
+        """Test project_type."""
+        caplog.set_level(logging.WARNING)
+        mock_is_pipenv_project = mocker.patch(
+            f"{MODULE}.is_pipenv_project", return_value=pipenv_project
+        )
+        mock_is_poetry_project = mocker.patch(
+            f"{MODULE}.is_poetry_project", return_value=poetry_project
+        )
+        assert (
+            PythonProject(
+                Mock(
+                    source_code=tmp_path, use_pipenv=use_pipenv, use_poetry=use_poetry
+                ),
+                Mock(),
+            ).project_type
+            == expected
+        )
+        mock_is_poetry_project.assert_called_once_with(tmp_path)
+        if poetry_project:
+            if use_poetry:
+                mock_is_pipenv_project.assert_not_called()
+            else:
+                assert (
+                    "poetry project detected but use of poetry is explicitly disabled"
+                    in caplog.messages
+                )
+        else:
+            mock_is_pipenv_project.assert_called_once_with(tmp_path)
+        if (pipenv_project and not use_pipenv) and sum(
+            [poetry_project, use_poetry]
+        ) != 2:
+            assert (
+                "pipenv project detected but use of pipenv is explicitly disabled"
+                in caplog.messages
+            )
 
     def test_requirements_txt(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test requirements_txt."""
