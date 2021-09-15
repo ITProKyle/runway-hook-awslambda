@@ -13,6 +13,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -53,6 +54,7 @@ class DependencyManager:
 
     """
 
+    CONFIG_FILES: ClassVar[Tuple[str, ...]]
     EXECUTABLE: ClassVar[str]
 
     ctx: CfnginContext
@@ -203,6 +205,11 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         return result
 
     @cached_property
+    def metadata_files(self) -> Tuple[Path, ...]:
+        """Project metadata files (e.g. ``project.json``, ``pyproject.toml``)."""
+        return ()
+
+    @cached_property
     def runtime(self) -> str:
         """Runtime of the deployment package."""
         return self.args.runtime
@@ -215,10 +222,27 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         Extends gitignore as needed.
 
         """
-        source_code = SourceCode(self.args.source_code)
+        source_code = SourceCode(
+            self.args.source_code, include_files_in_hash=self.metadata_files
+        )
         for rule in self.args.extend_gitignore:
             source_code.add_filter_rule(rule)
         return source_code
+
+    @cached_property
+    def project_type(self) -> str:
+        """Type of project (e.g. poetry, yarn).
+
+        This should be considered more of a "subtype" as the subclass should
+        distinguish project language. The value of this property should reflect
+        the project/dependency management tool used within the project.
+
+        The value of this property should be calculated without initalizing
+        other properties (e.g. ``source_code``) so that it can be used in
+        their initialization process.
+
+        """
+        raise NotImplementedError
 
     def cleanup(self) -> None:
         """Cleanup project files at the end of execution.

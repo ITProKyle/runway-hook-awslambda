@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Union
+from typing import TYPE_CHECKING, Any, Final, Tuple, Union
 
 from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
@@ -48,6 +48,10 @@ class PipenvNotFoundError(CfnginError):
 class Pipenv(DependencyManager):
     """Pipenv dependency manager."""
 
+    CONFIG_FILES: Final[Tuple[Literal["Pipfile"], Literal["Pipfile.lock"]]] = (
+        "Pipfile",
+        "Pipfile.lock",
+    )
     EXECUTABLE: Final[Literal["pipenv"]] = "pipenv"
 
     @cached_property
@@ -90,9 +94,9 @@ def is_pipenv_project(source_code: Union[Path, SourceCode]) -> bool:
         source_code: Source code object.
 
     """
-    if not (source_code / "Pipfile").is_file():
+    if not (source_code / Pipenv.CONFIG_FILES[0]).is_file():
         return False
 
-    if not (source_code / "Pipfile.lock").is_file():
-        LOGGER.warning("Pipfile.lock not found; creating it...")
+    if not (source_code / Pipenv.CONFIG_FILES[1]).is_file():
+        LOGGER.warning("%s not found; creating it...", Pipenv.CONFIG_FILES[1])
     return True

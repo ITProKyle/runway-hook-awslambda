@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 class TestPipenv:
     """Test pipenv."""
 
+    def test_config_files(self) -> None:
+        """Test CONFIG_FILES."""
+        assert Pipenv.CONFIG_FILES == ("Pipfile", "Pipfile.lock")
+
     @pytest.mark.parametrize(
         "export_kwargs",
         [

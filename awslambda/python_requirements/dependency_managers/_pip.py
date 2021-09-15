@@ -13,6 +13,7 @@ from typing import (
     Literal,
     Optional,
     Sequence,
+    Tuple,
     Union,
     cast,
 )
@@ -46,6 +47,7 @@ class PipInstallFailedError(CfnginError):
 class Pip(DependencyManager):
     """pip CLI interface."""
 
+    CONFIG_FILES: Final[Tuple[Literal["requirements.txt"]]] = ("requirements.txt",)
     EXECUTABLE: Final[Literal["pip"]] = "pip"
 
     @cached_property
@@ -109,7 +111,7 @@ class Pip(DependencyManager):
 
 
 def is_pip_project(
-    source_code: Union[Path, SourceCode], *, file_name: str = "requirements.txt"
+    source_code: Union[Path, SourceCode], *, file_name: str = Pip.CONFIG_FILES[0]
 ) -> bool:
     """Determine if source code is a pip project.
 

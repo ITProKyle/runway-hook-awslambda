@@ -27,4 +27,9 @@ class MockProject(Project[AwsLambdaHookArgs]):
         result.mkdir(exist_ok=True, parents=True)
         return result
 
+    @cached_property
+    def project_type(self) -> str:
+        """Type of project (e.g. poetry, yarn)."""
+        return "mock"
+
     install_dependencies = Mock(return_value=None)

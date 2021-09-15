@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Final, List, Optional, Tuple, Union
 
 import tomli
 from runway.cfngin.exceptions import CfnginError
@@ -51,6 +51,10 @@ class PoetryNotFoundError(CfnginError):
 class Poetry(DependencyManager):
     """Poetry dependency manager."""
 
+    CONFIG_FILES: Final[Tuple[Literal["poetry.lock"], Literal["pyproject.toml"]]] = (
+        "poetry.lock",
+        "pyproject.toml",
+    )
     EXECUTABLE: Final[Literal["poetry"]] = "poetry"
 
     @cached_property
@@ -111,7 +115,7 @@ def is_poetry_project(source_code: Union[Path, SourceCode]) -> bool:
         source_code: Source code object.
 
     """
-    pyproject_path = source_code / "pyproject.toml"
+    pyproject_path = source_code / Poetry.CONFIG_FILES[1]
 
     if not pyproject_path.is_file():
         return False

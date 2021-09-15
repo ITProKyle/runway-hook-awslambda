@@ -40,6 +40,7 @@ class TestSourceCode:
         gitignore_filter.return_value = gitignore_filter
 
         obj = SourceCode(tmp_path)
+        assert obj._include_files_in_hash == []
         assert obj.gitignore_filter == gitignore_filter
         gitignore_filter.assert_called_once_with()
         assert obj.root_directory == tmp_path
@@ -55,7 +56,12 @@ class TestSourceCode:
     def test___init___gitignore_filter_provided(self, tmp_path: Path) -> None:
         """Test __init__ gitignore_filter provided."""
         gitignore_filter = Mock()
-        obj = SourceCode(tmp_path, gitignore_filter=gitignore_filter)
+        obj = SourceCode(
+            tmp_path,
+            gitignore_filter=gitignore_filter,
+            include_files_in_hash=[tmp_path],
+        )
+        assert obj._include_files_in_hash == [tmp_path]
         assert obj.gitignore_filter == gitignore_filter
         gitignore_filter.parse_rule_files.assert_not_called()
         gitignore_filter.add_rule.assert_not_called()
@@ -125,11 +131,15 @@ class TestSourceCode:
             f"{MODULE}.FileHash", return_value=file_hash
         )
         mock_md5 = mocker.patch("hashlib.md5")
+        test_file = tmp_path / "test.txt"
         assert (
-            SourceCode(tmp_path, gitignore_filter=Mock()).md5_hash
+            SourceCode(
+                tmp_path, gitignore_filter=Mock(), include_files_in_hash=[test_file]
+            ).md5_hash
             == file_hash.hexdigest
         )
         mock_file_hash_class.assert_called_once_with(mock_md5.return_value)
+        file_hash.add_files.assert_called_once_with([test_file], relative_to=tmp_path)
 
     @pytest.mark.parametrize("reverse", [False, True])
     def test_sorted(self, mocker: MockerFixture, reverse: bool, tmp_path: Path) -> None:

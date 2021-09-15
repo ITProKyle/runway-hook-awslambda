@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import logging
 import shutil
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
+from typing_extensions import Literal
 
 from ..base_classes import Project
 from ..constants import BASE_WORK_DIR
@@ -59,23 +60,50 @@ class PythonProject(Project[PythonFunctionHookArgs]):
     """Python project."""
 
     @cached_property
+    def metadata_files(self) -> Tuple[Path, ...]:
+        """Project metadata files.
+
+        Files are only included in return value if they exist.
+
+        """
+        if self.project_type == "poetry":
+            config_files = [
+                self.args.source_code / config_file
+                for config_file in Poetry.CONFIG_FILES
+            ]
+        elif self.project_type == "pipenv":
+            config_files = [
+                self.args.source_code / config_file
+                for config_file in Pipenv.CONFIG_FILES
+            ]
+        else:
+            config_files = [
+                self.args.source_code / config_file for config_file in Pip.CONFIG_FILES
+            ]
+        return tuple(path for path in config_files if path.exists())
+
+    @cached_property
     def pip(self) -> Pip:
         """Pip dependency manager."""
         return Pip(self.ctx, self.source_code)
 
     @cached_property
     def pipenv(self) -> Optional[Pipenv]:
-        """Pipenv dependency manager."""
-        if not is_pipenv_project(self.source_code):
+        """Pipenv dependency manager.
+
+        Return:
+            If the project uses pipenv and pipenv is not explicitly disabled,
+            an object for interfacing with pipenv will be returned.
+
+        Raises:
+            PipenvNotFoundError: pipenv is not installed or not found in PATH.
+
+        """
+        if self.project_type != "pipenv":
             return None
-        if not self.args.use_pipenv:
-            LOGGER.warning(
-                "pipenv project detected but use of pipenv is explicitly disabled"
-            )
-            return None
-        if not Pipenv.found_in_path():
-            raise PipenvNotFoundError
-        return Pipenv(self.ctx, self.source_code)
+        if Pipenv.found_in_path():
+            return Pipenv(self.ctx, self.source_code)
+        raise PipenvNotFoundError
 
     @cached_property
     def poetry(self) -> Optional[Poetry]:
@@ -89,16 +117,28 @@ class PythonProject(Project[PythonFunctionHookArgs]):
             PoetryNotFound: poetry is not installed or not found in PATH.
 
         """
-        if not is_poetry_project(self.source_code):
+        if self.project_type != "poetry":
             return None
-        if not self.args.use_poetry:
+        if Poetry.found_in_path():
+            return Poetry(self.ctx, self.source_code)
+        raise PoetryNotFoundError
+
+    @cached_property
+    def project_type(self) -> Literal["pip", "pipenv", "poetry"]:
+        """Type of python project."""
+        if is_poetry_project(self.args.source_code):
+            if self.args.use_poetry:
+                return "poetry"
             LOGGER.warning(
                 "poetry project detected but use of poetry is explicitly disabled"
             )
-            return None
-        if not Poetry.found_in_path():
-            raise PoetryNotFoundError
-        return Poetry(self.ctx, self.source_code)
+        if is_pipenv_project(self.args.source_code):
+            if self.args.use_pipenv:
+                return "pipenv"
+            LOGGER.warning(
+                "pipenv project detected but use of pipenv is explicitly disabled"
+            )
+        return "pip"
 
     @cached_property
     def requirements_txt(self) -> Path:
