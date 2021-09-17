@@ -121,26 +121,24 @@ class TestAwsLambdaHook:
 class TestDependencyManager:
     """Test DependencyManager."""
 
-    def test___init__(self, cfngin_context: CfnginContext) -> None:
+    def test___init__(self, cfngin_context: CfnginContext, tmp_path: Path) -> None:
         """Test __init__."""
-        source_code = Mock(name="source_code")
-        obj = DependencyManager(cfngin_context, source_code)
+        obj = DependencyManager(cfngin_context, tmp_path)
         assert obj.ctx == cfngin_context
-        assert obj.source_code == source_code
+        assert obj.root_directory == tmp_path
 
     def test__run_command(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture
+        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
     ) -> None:
         """Test _run_command."""
         mock_subprocess = mocker.patch(
             f"{MODULE}.subprocess.check_output", return_value="success"
         )
-        source_code = Mock(root_directory="./")
-        obj = DependencyManager(cfngin_context, source_code)
+        obj = DependencyManager(cfngin_context, tmp_path)
         assert obj._run_command("test") == mock_subprocess.return_value
         mock_subprocess.assert_called_once_with(
             "test",
-            cwd=source_code.root_directory,
+            cwd=tmp_path,
             env=obj.ctx.env.vars,
             shell=True,
             stderr=subprocess.PIPE,
@@ -148,18 +146,17 @@ class TestDependencyManager:
         )
 
     def test__run_command_no_suppress_output(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture
+        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
     ) -> None:
         """Test _run_command."""
         mock_subprocess = mocker.patch(
             f"{MODULE}.subprocess.check_call", return_value=0
         )
-        source_code = Mock(root_directory="./")
-        obj = DependencyManager(cfngin_context, source_code)
+        obj = DependencyManager(cfngin_context, tmp_path)
         assert not obj._run_command(["foo", "bar"], suppress_output=False)
         mock_subprocess.assert_called_once_with(
             "foo bar",
-            cwd=source_code.root_directory,
+            cwd=tmp_path,
             env=obj.ctx.env.vars,
             shell=True,
         )
@@ -221,10 +218,10 @@ class TestDependencyManager:
             *expected,
         ]
 
-    def test_version(self, cfngin_context: CfnginContext) -> None:
+    def test_version(self, tmp_path: Path) -> None:
         """Test version."""
         with pytest.raises(NotImplementedError):
-            assert DependencyManager(cfngin_context, Mock()).version
+            assert DependencyManager(Mock(), tmp_path).version
 
 
 class TestFunctionHook:
@@ -299,6 +296,64 @@ class TestProject:
         """Test metadata_files."""
         assert Project(Mock(), Mock()).metadata_files == ()
 
+    def test_project_root(self, tmp_path: Path) -> None:
+        """Test project_root."""
+        config_path = tmp_path / "config.yml"
+        config_path.touch()
+        assert (
+            Project(
+                Mock(source_code=tmp_path), Mock(config_path=config_path)
+            ).project_root
+            == tmp_path
+        )
+
+    def test_project_root_config_path_is_dir(self, tmp_path: Path) -> None:
+        """Test project_root ctx.config_path is a directory."""
+        assert (
+            Project(Mock(source_code=tmp_path), Mock(config_path=tmp_path)).project_root
+            == tmp_path
+        )
+
+    def test_project_root_config_path_not_parent_of_source_code(
+        self, caplog: LogCaptureFixture, tmp_path: Path
+    ) -> None:
+        """Test project_root ctx.config_path is not a parent of args.source_code."""
+        caplog.set_level(logging.INFO)
+        config_path_dir = tmp_path / "project"
+        config_path_dir.mkdir()
+        config_path = config_path_dir / "config.yml"
+        config_path.touch()
+        src_path = tmp_path / "src" / "lambda_function"
+        assert (
+            Project(
+                Mock(source_code=src_path), Mock(config_path=config_path)
+            ).project_root
+            == src_path
+        )
+        assert (
+            "ignoring project directory; "
+            "source code located outside of project directory"
+        ) in caplog.messages
+
+    @pytest.mark.parametrize("create_metadata_file", [False, True])
+    def test_project_root_config_path_parent_of_source_code(
+        self,
+        create_metadata_file: bool,
+        mocker: MockerFixture,
+        tmp_path: Path,
+    ) -> None:
+        """Test project_root ctx.config_path is a parent of args.source_code."""
+        config_path = tmp_path / "config.yml"
+        config_path.touch()
+        mocker.patch.object(Project, "supported_metadata_files", {"test.txt"})
+        src_path = tmp_path / "src" / "lambda_function"
+        src_path.mkdir(parents=True)
+        if create_metadata_file:
+            (src_path / "test.txt").touch()
+        assert Project(
+            Mock(source_code=src_path), Mock(config_path=config_path)
+        ).project_root == (src_path if create_metadata_file else tmp_path)
+
     def test_project_type(self) -> None:
         """Test project_type."""
         with pytest.raises(NotImplementedError):
@@ -317,6 +372,7 @@ class TestProject:
             "metadata_files",
             ("foo", "bar"),
         )
+        project_root = mocker.patch.object(Project, "project_root")
         source_code = Mock()
         source_code_base_class = mocker.patch(
             f"{MODULE}.SourceCode", Mock(return_value=source_code)
@@ -325,6 +381,12 @@ class TestProject:
         obj = Project(args, Mock())
         assert obj.source_code == source_code
         source_code_base_class.assert_called_once_with(
-            args.source_code, include_files_in_hash=metadata_files
+            args.source_code,
+            include_files_in_hash=metadata_files,
+            project_root=project_root,
         )
         source_code.add_filter_rule.assert_called_once_with(args.extend_gitignore[0])
+
+    def test_supported_metadata_files(self) -> None:
+        """Test supported_metadata_files."""
+        assert Project(Mock(), Mock()).supported_metadata_files == set()

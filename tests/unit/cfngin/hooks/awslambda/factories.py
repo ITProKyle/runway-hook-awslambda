@@ -28,6 +28,11 @@ class MockProject(Project[AwsLambdaHookArgs]):
         return result
 
     @cached_property
+    def project_root(self) -> Path:
+        """Root directory of the project."""
+        return self.args.source_code
+
+    @cached_property
     def project_type(self) -> str:
         """Type of project (e.g. poetry, yarn)."""
         return "mock"

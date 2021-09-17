@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, List, Sequence
 
 import pytest
 from mock import Mock
@@ -143,18 +143,17 @@ class TestPythonProject:
         expected = tuple(tmp_path / expected_file for expected_file in expected_files)
         for expected_file in expected:
             expected_file.touch()
+        mocker.patch.object(PythonProject, "project_root", tmp_path)
         mocker.patch.object(PythonProject, "project_type", project_type)
-        assert (
-            PythonProject(Mock(source_code=tmp_path), Mock()).metadata_files == expected
-        )
+        assert PythonProject(Mock(), Mock()).metadata_files == expected
 
     def test_pip(self, mocker: MockerFixture) -> None:
         """Test pip."""
         ctx = Mock()
         pip_class = mocker.patch(f"{MODULE}.Pip", return_value="Pip")
-        source_code = mocker.patch.object(PythonProject, "source_code")
+        project_root = mocker.patch.object(PythonProject, "project_root")
         assert PythonProject(Mock(), ctx).pip == pip_class.return_value
-        pip_class.assert_called_once_with(ctx, source_code)
+        pip_class.assert_called_once_with(ctx, project_root)
 
     def test_pipenv(self, mocker: MockerFixture) -> None:
         """Test pipenv."""
@@ -164,13 +163,13 @@ class TestPythonProject:
             Mock(found_in_path=Mock(return_value=True), return_value="Pipenv"),
         )
         mocker.patch.object(PythonProject, "project_type", "pipenv")
-        source_code = mocker.patch.object(PythonProject, "source_code")
+        project_root = mocker.patch.object(PythonProject, "project_root")
         assert (
             PythonProject(Mock(use_poetry=True), ctx).pipenv
             == pipenv_class.return_value
         )
         pipenv_class.found_in_path.assert_called_once_with()
-        pipenv_class.assert_called_once_with(ctx, source_code)
+        pipenv_class.assert_called_once_with(ctx, project_root)
 
     def test_pipenv_not_in_path(self, mocker: MockerFixture) -> None:
         """Test pipenv not in path."""
@@ -179,7 +178,7 @@ class TestPythonProject:
             Mock(found_in_path=Mock(return_value=False)),
         )
         mocker.patch.object(PythonProject, "project_type", "pipenv")
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         with pytest.raises(PipenvNotFoundError):
             assert PythonProject(Mock(use_pipenv=True), Mock()).pipenv
         pipenv_class.found_in_path.assert_called_once_with()
@@ -187,7 +186,7 @@ class TestPythonProject:
     def test_pipenv_not_pipenv_project(self, mocker: MockerFixture) -> None:
         """Test pipenv project is not a pipenv project."""
         mocker.patch.object(PythonProject, "project_type", "poetry")
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         assert not PythonProject(Mock(use_pipenv=True), Mock()).pipenv
 
     def test_poetry(self, mocker: MockerFixture) -> None:
@@ -198,13 +197,13 @@ class TestPythonProject:
             Mock(found_in_path=Mock(return_value=True), return_value="Poetry"),
         )
         mocker.patch.object(PythonProject, "project_type", "poetry")
-        source_code = mocker.patch.object(PythonProject, "source_code")
+        project_root = mocker.patch.object(PythonProject, "project_root")
         assert (
             PythonProject(Mock(use_poetry=True), ctx).poetry
             == poetry_class.return_value
         )
         poetry_class.found_in_path.assert_called_once_with()
-        poetry_class.assert_called_once_with(ctx, source_code)
+        poetry_class.assert_called_once_with(ctx, project_root)
 
     def test_poetry_not_in_path(self, mocker: MockerFixture) -> None:
         """Test poetry not in path."""
@@ -213,7 +212,7 @@ class TestPythonProject:
             Mock(found_in_path=Mock(return_value=False)),
         )
         mocker.patch.object(PythonProject, "project_type", "poetry")
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         with pytest.raises(PoetryNotFoundError):
             assert PythonProject(Mock(use_poetry=True), Mock()).poetry
         poetry_class.found_in_path.assert_called_once_with()
@@ -221,7 +220,7 @@ class TestPythonProject:
     def test_poetry_not_poetry_project(self, mocker: MockerFixture) -> None:
         """Test poetry project is not a poetry project."""
         mocker.patch.object(PythonProject, "project_type", "pipenv")
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         assert not PythonProject(Mock(use_poetry=True), Mock()).poetry
 
     @pytest.mark.parametrize(
@@ -256,6 +255,7 @@ class TestPythonProject:
     ) -> None:
         """Test project_type."""
         caplog.set_level(logging.WARNING)
+        mocker.patch.object(PythonProject, "project_root", tmp_path)
         mock_is_pipenv_project = mocker.patch(
             f"{MODULE}.is_pipenv_project", return_value=pipenv_project
         )
@@ -264,9 +264,7 @@ class TestPythonProject:
         )
         assert (
             PythonProject(
-                Mock(
-                    source_code=tmp_path, use_pipenv=use_pipenv, use_poetry=use_poetry
-                ),
+                Mock(use_pipenv=use_pipenv, use_poetry=use_poetry),
                 Mock(),
             ).project_type
             == expected
@@ -299,7 +297,7 @@ class TestPythonProject:
         )
         mocker.patch.object(PythonProject, "pipenv", None)
         mocker.patch.object(PythonProject, "poetry", None)
-        mocker.patch.object(PythonProject, "source_code", tmp_path)
+        mocker.patch.object(PythonProject, "project_root", tmp_path)
         assert PythonProject(Mock(), Mock()).requirements_txt == expected
         mock_is_pip_project.assert_called_once_with(tmp_path, file_name=expected.name)
 
@@ -313,7 +311,7 @@ class TestPythonProject:
             PythonProject, "tmp_requirements_txt", "tmp_requirements_txt"
         )
         mocker.patch.object(PythonProject, "poetry", None)
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         assert PythonProject(Mock(), Mock()).requirements_txt == expected
         pipenv.export.assert_called_once_with(output=tmp_requirements_txt)
 
@@ -327,7 +325,7 @@ class TestPythonProject:
             PythonProject, "tmp_requirements_txt", "tmp_requirements_txt"
         )
         mocker.patch.object(PythonProject, "pipenv", None)
-        mocker.patch.object(PythonProject, "source_code")
+        mocker.patch.object(PythonProject, "project_root")
         assert PythonProject(Mock(), Mock()).requirements_txt == expected
         poetry.export.assert_called_once_with(output=tmp_requirements_txt)
 
@@ -340,7 +338,7 @@ class TestPythonProject:
         )
         mocker.patch.object(PythonProject, "pipenv", None)
         mocker.patch.object(PythonProject, "poetry", None)
-        mocker.patch.object(PythonProject, "source_code", tmp_path)
+        mocker.patch.object(PythonProject, "project_root", tmp_path)
         with pytest.raises(PythonRequirementsNotFoundError) as excinfo:
             assert PythonProject(Mock(), Mock()).requirements_txt
         mock_is_pip_project.assert_called_once_with(
@@ -348,6 +346,29 @@ class TestPythonProject:
         )
         assert (
             f"{tmp_path} does not contain a requirements file" in excinfo.value.message
+        )
+
+    @pytest.mark.parametrize(
+        "use_pipenv, use_poetry, update_expected",
+        [
+            (False, False, []),
+            (False, True, [*Poetry.CONFIG_FILES]),
+            (True, False, [*Pipenv.CONFIG_FILES]),
+            (True, True, [*Poetry.CONFIG_FILES, *Pipenv.CONFIG_FILES]),
+        ],
+    )
+    def test_supported_metadata_files(
+        self, update_expected: List[str], use_pipenv: bool, use_poetry: bool
+    ) -> None:
+        """Test supported_metadata_files."""
+        expected = {*Pip.CONFIG_FILES}
+        if update_expected:
+            expected.update(update_expected)
+        assert (
+            PythonProject(
+                Mock(use_pipenv=use_pipenv, use_poetry=use_poetry), Mock()
+            ).supported_metadata_files
+            == expected
         )
 
     def test_tmp_requirements_txt(self, mocker: MockerFixture, tmp_path: Path) -> None:

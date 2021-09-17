@@ -57,7 +57,7 @@ class TestPoetry:
         )
         (tmp_path / "test.requirements.txt").touch()  # created by _run_command
 
-        obj = Poetry(Mock(), Mock(root_directory=tmp_path))
+        obj = Poetry(Mock(), tmp_path)
         assert obj.export(output=expected, **export_kwargs) == expected
         assert expected.is_file()
         export_kwargs.update({"output": expected.name})
@@ -93,7 +93,7 @@ class TestPoetry:
         )
 
         with pytest.raises(PoetryExportFailedError) as excinfo:
-            assert Poetry(Mock(), Mock(root_directory=tmp_path)).export(output=output)
+            assert Poetry(Mock(), tmp_path).export(output=output)
         assert (
             excinfo.value.message
             == "poetry export failed with the following output:\nstderr"
@@ -112,18 +112,18 @@ class TestPoetry:
         )
 
         with pytest.raises(PoetryExportFailedError) as excinfo:
-            assert Poetry(Mock(), Mock(root_directory=tmp_path)).export(output=output)
+            assert Poetry(Mock(), tmp_path).export(output=output)
         assert (
             excinfo.value.message
             == f"poetry export failed with the following output:\n{mock_run_command.return_value}"
         )
 
-    def test_version(self, mocker: MockerFixture) -> None:
+    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
             Poetry, "_run_command", return_value="success"
         )
-        assert Poetry(Mock(), Mock()).version == mock_run_command.return_value
+        assert Poetry(Mock(), tmp_path).version == mock_run_command.return_value
         mock_run_command.assert_called_once_with([Poetry.EXECUTABLE, "--version"])
 
 

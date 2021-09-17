@@ -5,6 +5,7 @@ import logging
 import shlex
 import shutil
 import subprocess
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,6 +14,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     TypeVar,
     Union,
@@ -30,8 +32,7 @@ from .models.responses import AwsLambdaHookDeployResponse
 from .source_code import SourceCode
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
+    from _typeshed import StrPath
     from runway._logging import RunwayLogger
     from runway.context import CfnginContext
     from runway.utils import BaseModel
@@ -58,12 +59,14 @@ class DependencyManager:
     EXECUTABLE: ClassVar[str]
 
     ctx: CfnginContext
-    source_code: SourceCode
+    root_directory: Path
 
-    def __init__(self, context: CfnginContext, source_code: SourceCode) -> None:
+    def __init__(self, context: CfnginContext, root_directory: StrPath) -> None:
         """Instantiate class."""
         self.ctx = context
-        self.source_code = source_code
+        self.root_directory = (
+            root_directory if isinstance(root_directory, Path) else Path(root_directory)
+        )
 
     @cached_property
     def version(self) -> str:
@@ -105,7 +108,7 @@ class DependencyManager:
         if suppress_output:
             return subprocess.check_output(
                 cmd_str,
-                cwd=self.source_code.root_directory,
+                cwd=self.root_directory,
                 env=self.ctx.env.vars,
                 shell=True,
                 stderr=subprocess.PIPE,
@@ -113,7 +116,7 @@ class DependencyManager:
             )
         subprocess.check_call(
             cmd_str,
-            cwd=self.source_code.root_directory,
+            cwd=self.root_directory,
             env=self.ctx.env.vars,
             shell=True,
         )
@@ -223,11 +226,62 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 
         """
         source_code = SourceCode(
-            self.args.source_code, include_files_in_hash=self.metadata_files
+            self.args.source_code,
+            include_files_in_hash=self.metadata_files,
+            project_root=self.project_root,
         )
         for rule in self.args.extend_gitignore:
             source_code.add_filter_rule(rule)
         return source_code
+
+    @cached_property
+    def project_root(self) -> Path:
+        """Root directory of the project.
+
+        The top-level directory containing the source code and all
+        configuration/metadata files (e.g. pyproject.toml, package.json).
+
+        The project root can be different from the source code directory but,
+        if they are different, the project root should contain the source code
+        directory. If it does not, the source code directory will be always
+        be used.
+
+        The primary use case for this property is to allow configuration files
+        to exist outside of the source code directory. The ``project_type``
+        can and should rely on the value of this property when determining the
+        type.
+
+        """
+        top_lvl_dir = (
+            self.ctx.config_path.parent
+            if self.ctx.config_path.is_file()
+            else (
+                self.ctx.config_path
+                if self.ctx.config_path.is_dir()
+                else self.args.source_code
+            )
+        )
+        if top_lvl_dir == self.args.source_code:
+            return top_lvl_dir
+
+        parents = list(self.args.source_code.parents)
+        if top_lvl_dir not in parents:
+            LOGGER.info(
+                "ignoring project directory; "
+                "source code located outside of project directory"
+            )
+            return self.args.source_code
+
+        dirs_to_check = [
+            self.args.source_code,
+            *parents[: parents.index(top_lvl_dir) + 1],
+        ]
+        for dir_to_check in dirs_to_check:
+            for check_for_file in self.supported_metadata_files:
+                if next(dir_to_check.glob(check_for_file), None):
+                    return dir_to_check
+        # reached if all dirs in between source and top-level are missing metadata files
+        return top_lvl_dir
 
     @cached_property
     def project_type(self) -> str:
@@ -238,11 +292,21 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         the project/dependency management tool used within the project.
 
         The value of this property should be calculated without initalizing
-        other properties (e.g. ``source_code``) so that it can be used in
-        their initialization process.
+        other properties (e.g. ``source_code``) except for ``project_root``
+        so that it can be used in their initialization process.
 
         """
         raise NotImplementedError
+
+    @cached_property
+    def supported_metadata_files(self) -> Set[str]:
+        """Names of all supported metadata files.
+
+        Returns:
+            Set of file names - not paths.
+
+        """
+        return set()
 
     def cleanup(self) -> None:
         """Cleanup project files at the end of execution.
