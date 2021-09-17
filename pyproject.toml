@@ -18,7 +18,7 @@ sphinx-rtd-theme = { version = "^0.5.2", optional = true }  # docs
 tomli = "^1.2.1"
 
 [tool.poetry.dev-dependencies]
-black = "21.7b0"
+black = "^21.9b0"
 boto3-stubs = { extras = ["s3"], version = "^1.16" }
 coverage = "^5.5"
 flake8 = "^3.9.2"
