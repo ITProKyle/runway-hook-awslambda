@@ -99,7 +99,7 @@ class Poetry(DependencyManager):
                     without_hashes=without_hashes,
                 )
             )
-            requirements_txt = self.source_code.root_directory / output.name
+            requirements_txt = self.root_directory / output.name
             if requirements_txt.is_file():
                 output.parent.mkdir(exist_ok=True, parents=True)
                 return requirements_txt.rename(output)

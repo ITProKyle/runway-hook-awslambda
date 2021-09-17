@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import shutil
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Set, Tuple, Union
 
 from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
@@ -26,6 +26,8 @@ from .dependency_managers import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from _typeshed import StrPath
+
     from ..source_code import SourceCode
 
 LOGGER = logging.getLogger(f"runway.{__name__}")
@@ -40,7 +42,7 @@ class PythonRequirementsNotFoundError(CfnginError):
     """
 
     def __init__(
-        self, source_code: Union[Path, SourceCode, str], *args: Any, **kwargs: Any
+        self, source_code: Union[SourceCode, StrPath], *args: Any, **kwargs: Any
     ) -> None:
         """Instantiace class.
 
@@ -68,24 +70,22 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         """
         if self.project_type == "poetry":
             config_files = [
-                self.args.source_code / config_file
-                for config_file in Poetry.CONFIG_FILES
+                self.project_root / config_file for config_file in Poetry.CONFIG_FILES
             ]
         elif self.project_type == "pipenv":
             config_files = [
-                self.args.source_code / config_file
-                for config_file in Pipenv.CONFIG_FILES
+                self.project_root / config_file for config_file in Pipenv.CONFIG_FILES
             ]
         else:
             config_files = [
-                self.args.source_code / config_file for config_file in Pip.CONFIG_FILES
+                self.project_root / config_file for config_file in Pip.CONFIG_FILES
             ]
         return tuple(path for path in config_files if path.exists())
 
     @cached_property
     def pip(self) -> Pip:
         """Pip dependency manager."""
-        return Pip(self.ctx, self.source_code)
+        return Pip(self.ctx, self.project_root)
 
     @cached_property
     def pipenv(self) -> Optional[Pipenv]:
@@ -102,7 +102,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         if self.project_type != "pipenv":
             return None
         if Pipenv.found_in_path():
-            return Pipenv(self.ctx, self.source_code)
+            return Pipenv(self.ctx, self.project_root)
         raise PipenvNotFoundError
 
     @cached_property
@@ -120,19 +120,19 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         if self.project_type != "poetry":
             return None
         if Poetry.found_in_path():
-            return Poetry(self.ctx, self.source_code)
+            return Poetry(self.ctx, self.project_root)
         raise PoetryNotFoundError
 
     @cached_property
     def project_type(self) -> Literal["pip", "pipenv", "poetry"]:
         """Type of python project."""
-        if is_poetry_project(self.args.source_code):
+        if is_poetry_project(self.project_root):
             if self.args.use_poetry:
                 return "poetry"
             LOGGER.warning(
                 "poetry project detected but use of poetry is explicitly disabled"
             )
-        if is_pipenv_project(self.args.source_code):
+        if is_pipenv_project(self.project_root):
             if self.args.use_pipenv:
                 return "pipenv"
             LOGGER.warning(
@@ -147,10 +147,25 @@ class PythonProject(Project[PythonFunctionHookArgs]):
             return self.poetry.export(output=self.tmp_requirements_txt)
         if self.pipenv:
             return self.pipenv.export(output=self.tmp_requirements_txt)
-        requirements_txt = self.source_code / "requirements.txt"
-        if is_pip_project(self.source_code, file_name=requirements_txt.name):
+        requirements_txt = self.project_root / "requirements.txt"
+        if is_pip_project(self.project_root, file_name=requirements_txt.name):
             return requirements_txt
-        raise PythonRequirementsNotFoundError(self.source_code)
+        raise PythonRequirementsNotFoundError(self.project_root)
+
+    @cached_property
+    def supported_metadata_files(self) -> Set[str]:
+        """Names of all supported metadata files.
+
+        Returns:
+            Set of file names - not paths.
+
+        """
+        file_names = {*Pip.CONFIG_FILES}
+        if self.args.use_poetry:
+            file_names.update(Poetry.CONFIG_FILES)
+        if self.args.use_pipenv:
+            file_names.update(Pipenv.CONFIG_FILES)
+        return file_names
 
     @cached_property
     def tmp_requirements_txt(self) -> Path:

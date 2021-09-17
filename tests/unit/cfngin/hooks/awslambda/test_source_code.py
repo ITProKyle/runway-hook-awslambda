@@ -43,6 +43,7 @@ class TestSourceCode:
         assert obj._include_files_in_hash == []
         assert obj.gitignore_filter == gitignore_filter
         gitignore_filter.assert_called_once_with()
+        assert obj.project_root == tmp_path
         assert obj.root_directory == tmp_path
         gitignore_filter.parse_rule_files.assert_called_once_with(tmp_path)
         gitignore_filter.add_rule.assert_has_calls(
@@ -71,21 +72,35 @@ class TestSourceCode:
         gitignore_filter = mocker.patch("igittigitt.IgnoreParser", Mock())
         gitignore_filter.return_value = gitignore_filter
 
-        obj = SourceCode(str(tmp_path))
-        assert obj.root_directory == tmp_path
+        src_path = tmp_path / "src"
+        obj = SourceCode(str(src_path), project_root=str(tmp_path))
+        assert obj.project_root == tmp_path
+        assert obj.root_directory == src_path
         assert isinstance(obj.root_directory, Path)
 
     def test___iter__(self, tmp_path: Path) -> None:
         """Test __iter__."""
-        file0 = tmp_path / "foo0.txt"
+        src_path = tmp_path / "src"
+        src_path.mkdir()
+        file0 = src_path / "foo0.txt"
         file0.touch()
-        file1 = tmp_path / "foo1.txt"
+        file1 = src_path / "foo1.txt"
         file1.touch()
-        (tmp_path / "dir").mkdir()
+        (src_path / "dir").mkdir()
 
         gitignore_filter = Mock(match=Mock(side_effect=[False, True]))
         assert (
-            len(list(iter(SourceCode(tmp_path, gitignore_filter=gitignore_filter))))
+            len(
+                list(
+                    iter(
+                        SourceCode(
+                            src_path,
+                            gitignore_filter=gitignore_filter,
+                            project_root=tmp_path,
+                        )
+                    )
+                )
+            )
             == 1
         )
         gitignore_filter.match.assert_has_calls(
@@ -104,10 +119,13 @@ class TestSourceCode:
         """Test add_filter_rule."""
         gitignore_filter = Mock()
         pattern = "foobar/"
-        obj = SourceCode(tmp_path, gitignore_filter=gitignore_filter)
+        src_path = tmp_path / "src"
+        obj = SourceCode(
+            src_path, gitignore_filter=gitignore_filter, project_root=tmp_path
+        )
         assert not obj.add_filter_rule(pattern)
         gitignore_filter.add_rule.assert_called_once_with(
-            pattern=pattern, base_path=tmp_path
+            pattern=pattern, base_path=src_path
         )
 
     def test_copy(self, mocker: MockerFixture, tmp_path: Path) -> None:
@@ -131,10 +149,15 @@ class TestSourceCode:
             f"{MODULE}.FileHash", return_value=file_hash
         )
         mock_md5 = mocker.patch("hashlib.md5")
-        test_file = tmp_path / "test.txt"
+        src_path = tmp_path / "src"
+        src_path.mkdir()
+        test_file = src_path / "test.txt"
         assert (
             SourceCode(
-                tmp_path, gitignore_filter=Mock(), include_files_in_hash=[test_file]
+                src_path,
+                gitignore_filter=Mock(),
+                include_files_in_hash=[test_file],
+                project_root=tmp_path,
             ).md5_hash
             == file_hash.hexdigest
         )

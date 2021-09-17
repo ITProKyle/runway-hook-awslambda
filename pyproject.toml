@@ -61,6 +61,7 @@ force-exclude = '''
     \.eggs
   | \.git
   | \.mypy_cache
+  | \.runway
   | \.tox
   | \.venv
   | _build

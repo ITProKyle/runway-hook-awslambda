@@ -52,7 +52,7 @@ class TestPipenv:
         mock_run_command = mocker.patch.object(
             Pipenv, "_run_command", return_value="_run_command"
         )
-        obj = Pipenv(Mock(), Mock(root_directory=tmp_path))
+        obj = Pipenv(Mock(), tmp_path)
         assert obj.export(output=expected, **export_kwargs) == expected
         assert expected.is_file()
         export_kwargs.setdefault("dev", False)
@@ -82,17 +82,17 @@ class TestPipenv:
         )
 
         with pytest.raises(PipenvExportFailedError):
-            assert Pipenv(Mock(), Mock(root_directory=tmp_path)).export(output=output)
+            assert Pipenv(Mock(), tmp_path).export(output=output)
         mock_run_command.assert_called_once_with(
             mock_generate_command.return_value, suppress_output=True
         )
 
-    def test_version(self, mocker: MockerFixture) -> None:
+    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
             Pipenv, "_run_command", return_value="success"
         )
-        assert Pipenv(Mock(), Mock()).version == mock_run_command.return_value
+        assert Pipenv(Mock(), tmp_path).version == mock_run_command.return_value
         mock_run_command.assert_called_once_with([Pipenv.EXECUTABLE, "--version"])
 
 

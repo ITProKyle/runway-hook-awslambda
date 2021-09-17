@@ -65,7 +65,7 @@ class TestPip:
         )
 
         assert (
-            Pip(Mock(), Mock()).install(requirements=requirements_txt, target=target)
+            Pip(Mock(), tmp_path).install(requirements=requirements_txt, target=target)
             == target
         )
         assert target.is_dir(), "target directory and parents created"
@@ -93,7 +93,7 @@ class TestPip:
         )
 
         with pytest.raises(PipInstallFailedError) as excinfo:
-            assert Pip(Mock(), Mock()).install(
+            assert Pip(Mock(), tmp_path).install(
                 requirements=requirements_txt, target=target
             )
         assert (
@@ -101,12 +101,12 @@ class TestPip:
             "review pip's output above to troubleshoot"
         )
 
-    def test_version(self, mocker: MockerFixture) -> None:
+    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
             Pip, "_run_command", return_value="success"
         )
-        assert Pip(Mock(), Mock()).version == mock_run_command.return_value
+        assert Pip(Mock(), tmp_path).version == mock_run_command.return_value
         mock_run_command.assert_called_once_with([Pip.EXECUTABLE, "--version"])
 
 

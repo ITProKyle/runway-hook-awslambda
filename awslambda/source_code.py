@@ -23,11 +23,16 @@ class SourceCode:
     Attributes:
         gitignore_filter: Filter to use when zipping dependencies.
             If file/folder matches the filter, it should be ignored.
+        project_root: Top-level directory containing the project metadata files
+            and source code root directory. The value can be the same as
+            ``root_directory``. If it is not, it must be a parent of
+            ``root_direcotry``.
         root_directory: The root directory containing the source code.
 
     """
 
     gitignore_filter: igittigitt.IgnoreParser
+    project_root: Path
     root_directory: Path
 
     def __init__(
@@ -36,6 +41,7 @@ class SourceCode:
         *,
         gitignore_filter: Optional[igittigitt.IgnoreParser] = None,
         include_files_in_hash: Optional[Sequence[Path]] = None,
+        project_root: Optional[StrPath] = None,
     ) -> None:
         """Instantiate class.
 
@@ -46,12 +52,22 @@ class SourceCode:
             include_files_in_hash: Files that should be included in hash
                 calculation even if they are filtered by gitignore (e.g.
                 ``poetry.lock``).
+            project_root: Optional project root if the source code is located
+                within a larger project. This should only be used if the
+                contents of value of ``include_files_in_hash`` contains paths
+                that exist outside of the root directory. If this is provided,
+                it must be a parent of the root directory.
 
         """
         self._include_files_in_hash = include_files_in_hash or []
         self.gitignore_filter = gitignore_filter or igittigitt.IgnoreParser()
         self.root_directory = (
             root_directory if isinstance(root_directory, Path) else Path(root_directory)
+        )
+        self.project_root = (  # defaults to root_directory if project_root not provided
+            project_root
+            if isinstance(project_root, Path)
+            else (Path(project_root) if project_root else self.root_directory)
         )
 
         if not gitignore_filter:
@@ -75,7 +91,7 @@ class SourceCode:
             if include_file not in sorted_files:
                 sorted_files.append(include_file)
         file_hash = FileHash(hashlib.md5())
-        file_hash.add_files(sorted(sorted_files), relative_to=self.root_directory)
+        file_hash.add_files(sorted(sorted_files), relative_to=self.project_root)
         return file_hash.hexdigest
 
     def add_filter_rule(self, pattern: str) -> None:
@@ -107,7 +123,8 @@ class SourceCode:
                 destination_directory,
                 ignore=self.gitignore_filter.shutil_ignore,
                 dirs_exist_ok=True,  # TODO remove to support python 3.7
-            )
+            ),
+            project_root=self.project_root,
         )
 
     def sorted(self, *, reverse: bool = False) -> List[Path]:
