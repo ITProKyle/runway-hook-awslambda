@@ -69,15 +69,22 @@ setup-npm: ## install node dependencies with npm
 	@npm ci
 
 setup-poetry: ## setup python virtual environment
-	@poetry install
+	@poetry install \
+		--extras docs \
+		--remove-untracked
 
 setup-pre-commit: ## install pre-commit git hooks
 	@poetry run pre-commit install
 
 spellcheck: ## run cspell
 	@echo "Running cSpell to checking spelling..."
-	@npx cspell "**/*" --color --config .vscode/cspell.json --must-find-files
-	@echo ""
+	@npx cspell "**/*" \
+		--color \
+		--config .vscode/cspell.json \
+		--must-find-files \
+		--no-progress \
+		--relative \
+		--show-context
 
 test: ## run unit tests
 	@echo "Running unit tests..."

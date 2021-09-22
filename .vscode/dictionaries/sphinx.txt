@@ -2,12 +2,18 @@ BUILDDIR
 SOURCEDIR
 SPHINXBUILD
 SPHINXOPTS
+Subpackages
+apidoc
 apidocs
 autoclass
 autodoc
 automodule
 bysource
+docname
+docnames
+endfor
 epub
+favicon
 genindex
 htbp
 ivar
@@ -18,6 +24,7 @@ modindex
 noindex
 rtype
 seealso
+sphinxcontrib
 toctree
 versionadded
 versionchanged
