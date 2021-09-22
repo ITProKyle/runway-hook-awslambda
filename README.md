@@ -1,6 +1,7 @@
 # runway-hook-awslambda
 
 [![code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat)](https://github.com/psf/black)
+[![Documentation Status](https://readthedocs.org/projects/runway-hook-awslambda/badge/?version=latest)](https://runway-hook-awslambda.readthedocs.io/en/latest/?badge=latest)
 
 > **[DISCLAIMER]** This is a _temporary_ project being used to develop & test a feature that will be added to [Runway](runway) in a future release.
 > Expect frequency, drastic, and breaking changes during development so use at your own risk.
@@ -17,7 +18,7 @@ There will be a deprecation warning added to the current hook stating that it wi
 
 ## Prerequisites
 
-- Python 3.8 (will be lowered to 3.7 for the final release)
+- Python ^3.8 (will be lowered to 3.7 for the final release)
 - pip
 
 ### Optional Prerequisites
