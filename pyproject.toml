@@ -9,7 +9,6 @@ license = "Apache-2.0"
 python = "^3.8"
 
 igittigitt = "^2.0.4"
-pygments = { version = "^2.10.0", optional = true }  # docs
 # runway = { git = "https://github.com/onicagroup/runway.git", branch = "master" }
 runway = "^2.4.0"
 sphinx = { version = "^4.1.2", optional = true }  # docs
@@ -44,7 +43,6 @@ tomli-w = "^0.3.0"  # TODO add to runway
 
 [tool.poetry.extras]
 docs = [
-  "pygments",
   "sphinx",
   "sphinx-rtd-theme",
   "sphinxcontrib-apidoc",

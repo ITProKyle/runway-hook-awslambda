@@ -10,13 +10,9 @@ full list see the documentation: http://www.sphinx-doc.org/en/master/config
 import os
 from pathlib import Path
 
-from docs.pygment_styles import OneDark, pygments_patch_style
-
 DOCS_DIR = Path(__file__).parent.parent.resolve()
 ROOT_DIR = DOCS_DIR.parent
 SRC_DIR = DOCS_DIR / "source"
-
-pygments_patch_style("one_dark", OneDark)
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -54,7 +50,7 @@ needs_extensions = {}
 needs_sphinx = "4.2"
 nitpicky = False
 primary_domain = "py"
-pygments_style = "one_dark"
+pygments_style = "material"
 # TODO fix Dict in runway repo
 rst_epilog = """
 .. |Blueprint| replace::
