@@ -3,7 +3,7 @@ import sys
 
 from ._python import PythonFunction
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 8):  # cov: ignore
     # importlib.metadata is standard lib for python>=3.8, use backport
     from importlib_metadata import (  # type: ignore # pylint: disable=E
         PackageNotFoundError,
@@ -17,8 +17,8 @@ else:
 
 __all__ = ["__version__", "PythonFunction"]
 
-try:
+try:  # cov: ignore
     __version__ = version(__name__)
-except PackageNotFoundError:
+except PackageNotFoundError:  # cov: ignore
     # package is not installed
     __version__ = "0.0.0"
