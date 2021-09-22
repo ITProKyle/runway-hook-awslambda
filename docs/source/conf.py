@@ -10,6 +10,8 @@ full list see the documentation: http://www.sphinx-doc.org/en/master/config
 import os
 from pathlib import Path
 
+from pkg_resources import get_distribution
+
 DOCS_DIR = Path(__file__).parent.parent.resolve()
 ROOT_DIR = DOCS_DIR.parent
 SRC_DIR = DOCS_DIR / "source"
@@ -19,8 +21,8 @@ SRC_DIR = DOCS_DIR / "source"
 project = "runway-hook-awslambda"
 copyright = "2021, Kyle Finley"
 author = "Kyle Finley"
-version = "0.0.0"
-release = "0.0.0"
+release = get_distribution("awslambda").version
+version = release
 
 
 # -- General configuration ---------------------------------------------------
