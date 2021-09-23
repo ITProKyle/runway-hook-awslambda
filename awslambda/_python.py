@@ -46,6 +46,6 @@ class PythonFunction(FunctionHook[PythonProject]):
         """Run during the **pre_deploy** stage."""
         try:
             self.deployment_package.upload()
-            return self.build_response("deploy")
+            return self.build_response("deploy").dict(by_alias=True)
         finally:
             self.cleanup()

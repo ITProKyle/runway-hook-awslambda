@@ -67,17 +67,19 @@ class TestPythonFunction:
         self, args: PythonFunctionHookArgs, mocker: MockerFixture
     ) -> None:
         """Test pre_deploy."""
+        model = Mock(dict=Mock(return_value="success"))
         build_response = mocker.patch.object(
-            PythonFunction, "build_response", return_value="success"
+            PythonFunction, "build_response", return_value=(model)
         )
         cleanup = mocker.patch.object(PythonFunction, "cleanup")
         deployment_package = mocker.patch.object(PythonFunction, "deployment_package")
         assert (
             PythonFunction(Mock(), **args.dict()).pre_deploy()
-            == build_response.return_value
+            == model.dict.return_value
         )
         deployment_package.upload.assert_called_once_with()
         build_response.assert_called_once_with("deploy")
+        model.dict.assert_called_once_with(by_alias=True)
         cleanup.assert_called_once_with()
 
     def test_pre_deploy_always_cleanup(

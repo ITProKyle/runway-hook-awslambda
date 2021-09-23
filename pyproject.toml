@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awslambda"
-version = "0.1.0"
+version = "0.1.1"
 description = "Runway hook for AWS Lambda."
 authors = ["Kyle Finley <kyle@finley.sh>"]
 license = "Apache-2.0"
