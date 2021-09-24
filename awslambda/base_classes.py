@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from runway.utils import BaseModel
 
     from .deployment_package import DeploymentPackage
+    from .type_defs import AwsLambdaHookDeployResponseTypedDict
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
@@ -370,8 +371,12 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
     def build_response(self, stage: Literal["destroy"]) -> Optional[BaseModel]:
         ...
 
+    @overload
+    def build_response(self, stage: Literal["plan"]) -> AwsLambdaHookDeployResponse:
+        ...
+
     def build_response(
-        self, stage: Literal["deploy", "destroy"]
+        self, stage: Literal["deploy", "destroy", "plan"]
     ) -> Optional[BaseModel]:
         """Build response object that will be returned by this hook.
 
@@ -383,6 +388,8 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             return self._build_response_deploy()
         if stage == "destroy":
             return self._build_response_destroy()
+        if stage == "plan":
+            return self._build_response_plan()
         raise NotImplementedError("only deploy and destroy are supported")
 
     def _build_response_deploy(self) -> AwsLambdaHookDeployResponse:
@@ -398,6 +405,32 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
     def _build_response_destroy(self) -> Optional[BaseModel]:
         """Build response for destroy stage."""
         return None
+
+    def _build_response_plan(self) -> AwsLambdaHookDeployResponse:
+        """Build response for plan stage."""
+        try:
+            return AwsLambdaHookDeployResponse(
+                bucket_name=self.deployment_package.bucket.name,
+                code_sha256=self.deployment_package.code_sha256,
+                object_key=self.deployment_package.object_key,
+                object_version_id=self.deployment_package.object_version_id,
+                runtime=self.deployment_package.runtime,
+            )
+        except FileNotFoundError:
+            return AwsLambdaHookDeployResponse(
+                bucket_name=self.deployment_package.bucket.name,
+                code_sha256="WILL CALCULATE WHEN BUILT",
+                object_key=self.deployment_package.object_key,
+                object_version_id=self.deployment_package.object_version_id,
+                runtime=self.deployment_package.runtime,
+            )
+
+    def plan(self) -> AwsLambdaHookDeployResponseTypedDict:
+        """Run during the **plan** stage."""
+        return cast(
+            "AwsLambdaHookDeployResponseTypedDict",
+            self.build_response("plan").dict(by_alias=True),
+        )
 
     def post_deploy(self) -> Any:
         """Run during the **post_deploy** stage."""
