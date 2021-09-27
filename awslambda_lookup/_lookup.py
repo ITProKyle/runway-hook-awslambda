@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from runway.context import RunwayContext
 from runway.lookups.handlers.base import LookupHandler
 from runway.utils import load_object_from_string
+from troposphere.awslambda import Code
 
 from awslambda.base_classes import AwsLambdaHook
 from awslambda.models.responses import AwsLambdaHookDeployResponse
@@ -155,6 +156,36 @@ class AwsLambdaLookup(LookupHandler):
         query, _ = cls.parse(value)
         return cls.get_deployment_package_data(context, query)
 
+    class Code(LookupHandler):
+        """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
+
+        NAME: ClassVar[str] = "awslambda.Code"
+
+        @classmethod
+        def handle(  # pylint: disable=arguments-differ
+            cls,
+            value: str,
+            context: Union[CfnginContext, RunwayContext],
+            *args: Any,
+            **kwargs: Any,
+        ) -> Code:
+            """Retrieve metadata for an AWS Lambda deployment package.
+
+            Args:
+                value: Value to resolve.
+                context: The current context object.
+
+            Returns:
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Function.Code``.
+
+            """
+            return Code(
+                **AwsLambdaLookup.handle(value, context, *args, **kwargs).dict(
+                    by_alias=True, exclude={"CodeSha256", "Runtime"}, exclude_none=True
+                )
+            )
+
     class CodeSha256(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
@@ -175,8 +206,8 @@ class AwsLambdaLookup(LookupHandler):
                 context: The current context object.
 
             Returns:
-                Value that can be passed into CloudFormation resource as the
-                ``CodeSha256`` property.
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Version.CodeSha256``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).code_sha256
@@ -201,8 +232,8 @@ class AwsLambdaLookup(LookupHandler):
                 context: The current context object.
 
             Returns:
-                Value that can be passed into CloudFormation resource as the
-                ``Runtime`` property.
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Function.Runtime``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).runtime
@@ -227,8 +258,8 @@ class AwsLambdaLookup(LookupHandler):
                 context: The current context object.
 
             Returns:
-                Value that can be passed into CloudFormation resource as the
-                ``S3Bucket`` property.
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Function.Code.S3Bucket``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).bucket_name
@@ -253,8 +284,8 @@ class AwsLambdaLookup(LookupHandler):
                 context: The current context object.
 
             Returns:
-                Value that can be passed into CloudFormation resource as the
-                ``S3Key`` property.
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Function.Code.S3Key``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).object_key
@@ -279,8 +310,8 @@ class AwsLambdaLookup(LookupHandler):
                 context: The current context object.
 
             Returns:
-                Value that can be passed into CloudFormation resource as the
-                ``S3ObjectVersion`` property.
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::Function.Code.S3ObjectVersion``.
 
             """
             return AwsLambdaLookup.handle(
