@@ -17,6 +17,7 @@ from awslambda.base_classes import (
     LayerHook,
     Project,
 )
+from awslambda.models.responses import AwsLambdaHookDeployResponse
 
 if TYPE_CHECKING:
     from pytest import LogCaptureFixture
@@ -35,9 +36,7 @@ class TestAwsLambdaHook:
         # only one attribute is currently set by this base class
         assert obj.ctx
 
-    def test_build_response_deploy(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture
-    ) -> None:
+    def test_build_response_deploy(self, mocker: MockerFixture) -> None:
         """Test build_response."""
         deployment_package = mocker.patch.object(
             AwsLambdaHook,
@@ -51,71 +50,120 @@ class TestAwsLambdaHook:
             ),
         )
         deployment_package.bucket.name = "test-bucket"
-        assert AwsLambdaHook(cfngin_context).build_response("deploy").dict() == {
-            "bucket_name": deployment_package.bucket.name,
-            "code_sha256": deployment_package.code_sha256,
-            "object_key": deployment_package.object_key,
-            "object_version_id": deployment_package.object_version_id,
-            "runtime": deployment_package.runtime,
-        }
+        assert AwsLambdaHook(Mock()).build_response(
+            "deploy"
+        ) == AwsLambdaHookDeployResponse(
+            bucket_name=deployment_package.bucket.name,
+            code_sha256=deployment_package.code_sha256,
+            object_key=deployment_package.object_key,
+            object_version_id=deployment_package.object_version_id,
+            runtime=deployment_package.runtime,
+        )
 
-    def test_build_response_destroy(self, cfngin_context: CfnginContext) -> None:
+    def test_build_response_destroy(self) -> None:
         """Test build_response."""
-        assert not AwsLambdaHook(cfngin_context).build_response("destroy")
+        assert not AwsLambdaHook(Mock()).build_response("destroy")
 
-    def test_deployment_package(self, cfngin_context: CfnginContext) -> None:
+    def test_build_response_plan(self, mocker: MockerFixture) -> None:
+        """Test build_response."""
+        deployment_package = mocker.patch.object(
+            AwsLambdaHook,
+            "deployment_package",
+            Mock(
+                bucket=Mock(),
+                code_sha256="sha256",
+                object_key="key",
+                object_version_id="version",
+                runtime="runtime",
+            ),
+        )
+        deployment_package.bucket.name = "test-bucket"
+        assert AwsLambdaHook(Mock()).build_response(
+            "plan"
+        ) == AwsLambdaHookDeployResponse(
+            bucket_name=deployment_package.bucket.name,
+            code_sha256=deployment_package.code_sha256,
+            object_key=deployment_package.object_key,
+            object_version_id=deployment_package.object_version_id,
+            runtime=deployment_package.runtime,
+        )
+
+    def test_build_response_plan_handle_file_not_found_error(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test build_response."""
+        mocker.patch.object(
+            AwsLambdaHook,
+            "deployment_package",
+            Mock(
+                bucket=Mock(),
+                code_sha256="sha256",
+                object_key="key",
+                object_version_id="version",
+                runtime="runtime",
+            ),
+        )
+        mocker.patch(
+            f"{MODULE}.AwsLambdaHookDeployResponse",
+            side_effect=[FileNotFoundError, "success"],
+        )
+        assert AwsLambdaHook(Mock()).build_response("plan") == "success"
+
+    def test_deployment_package(self) -> None:
         """Test deployment_package."""
         with pytest.raises(NotImplementedError):
-            assert AwsLambdaHook(cfngin_context).deployment_package
+            assert AwsLambdaHook(Mock()).deployment_package
 
-    def test_post_deploy(
-        self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
-    ) -> None:
+    def test_plan(self, mocker: MockerFixture) -> None:
+        """Test plan."""
+        response_obj = Mock(dict=Mock(return_value="success"))
+        build_response = mocker.patch.object(
+            AwsLambdaHook, "build_response", return_value=response_obj
+        )
+        assert AwsLambdaHook(Mock()).plan() == response_obj.dict.return_value
+        build_response.assert_called_once_with("plan")
+        response_obj.dict.assert_called_once_with(by_alias=True)
+
+    def test_post_deploy(self, caplog: LogCaptureFixture) -> None:
         """Test post_deploy."""
         caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
-        assert AwsLambdaHook(cfngin_context).post_deploy()
+        assert AwsLambdaHook(Mock()).post_deploy()
         assert (
             f"post_deploy not implimented for {AwsLambdaHook.__name__}"
             in caplog.messages
         )
 
-    def test_post_destroy(
-        self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
-    ) -> None:
+    def test_post_destroy(self, caplog: LogCaptureFixture) -> None:
         """Test post_destroy."""
         caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
-        assert AwsLambdaHook(cfngin_context).post_destroy()
+        assert AwsLambdaHook(Mock()).post_destroy()
         assert (
             f"post_destroy not implimented for {AwsLambdaHook.__name__}"
             in caplog.messages
         )
 
-    def test_pre_deploy(
-        self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
-    ) -> None:
+    def test_pre_deploy(self, caplog: LogCaptureFixture) -> None:
         """Test pre_deploy."""
         caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
-        assert AwsLambdaHook(cfngin_context).pre_deploy()
+        assert AwsLambdaHook(Mock()).pre_deploy()
         assert (
             f"pre_deploy not implimented for {AwsLambdaHook.__name__}"
             in caplog.messages
         )
 
-    def test_pre_destroy(
-        self, caplog: LogCaptureFixture, cfngin_context: CfnginContext
-    ) -> None:
+    def test_pre_destroy(self, caplog: LogCaptureFixture) -> None:
         """Test pre_destroy."""
         caplog.set_level(logging.WARNING, logger=f"runway.{MODULE}")
-        assert AwsLambdaHook(cfngin_context).pre_destroy()
+        assert AwsLambdaHook(Mock()).pre_destroy()
         assert (
             f"pre_destroy not implimented for {AwsLambdaHook.__name__}"
             in caplog.messages
         )
 
-    def test_project(self, cfngin_context: CfnginContext) -> None:
+    def test_project(self) -> None:
         """Test project."""
         with pytest.raises(NotImplementedError):
-            assert AwsLambdaHook(cfngin_context).project
+            assert AwsLambdaHook(Mock()).project
 
 
 class TestDependencyManager:

@@ -4,6 +4,10 @@ version = "0.1.1"
 description = "Runway hook for AWS Lambda."
 authors = ["Kyle Finley <kyle@finley.sh>"]
 license = "Apache-2.0"
+packages = [
+  { include = "awslambda" },
+  { include = "awslambda_lookup" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
