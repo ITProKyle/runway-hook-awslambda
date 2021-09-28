@@ -30,6 +30,7 @@ else:
 __all__ = ["__version__", "AwsLambdaLookup"]
 
 # quick way to register everything with one line in the CFNgin config file
+register_lookup_handler(AwsLambdaLookup.Code.NAME, AwsLambdaLookup.Code)
 register_lookup_handler(AwsLambdaLookup.CodeSha256.NAME, AwsLambdaLookup.CodeSha256)
 register_lookup_handler(AwsLambdaLookup.Runtime.NAME, AwsLambdaLookup.Runtime)
 register_lookup_handler(AwsLambdaLookup.S3Bucket.NAME, AwsLambdaLookup.S3Bucket)

@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Final, Optional, Union, cast
 
 from pydantic import ValidationError
 from runway.context import RunwayContext
 from runway.lookups.handlers.base import LookupHandler
 from runway.utils import load_object_from_string
 from troposphere.awslambda import Code
+from typing_extensions import Literal
 
 from awslambda.base_classes import AwsLambdaHook
 from awslambda.models.responses import AwsLambdaHookDeployResponse
@@ -35,7 +36,7 @@ class AwsLambdaLookup(LookupHandler):
 
     """
 
-    NAME: ClassVar[str] = "awslambda"
+    NAME: Final[Literal["awslambda"]] = "awslambda"
 
     @classmethod
     def get_deployment_package_data(
@@ -68,8 +69,8 @@ class AwsLambdaLookup(LookupHandler):
             return AwsLambdaHookDeployResponse.parse_obj(context.hook_data[data_key])
         except ValidationError:
             raise TypeError(
-                "expected hook_data of type AwsLambdaHookDeployResponseTypedDict; "
-                f"got {type(context.hook_data[data_key])}"
+                "expected AwsLambdaHookDeployResponseTypedDict, "
+                f"not {context.hook_data[data_key]}"
             ) from None
 
     @staticmethod
@@ -78,7 +79,7 @@ class AwsLambdaLookup(LookupHandler):
     ) -> CfnginHookDefinitionModel:
         """Get the required Hook definition from the CFNgin config.
 
-        Currently, this only supports finding the data_key in ONE stage.
+        Currently, this only supports finding the data_key pre_deploy.
 
         Args:
             config: CFNgin config being processed.
@@ -94,41 +95,15 @@ class AwsLambdaLookup(LookupHandler):
 
         """
         hooks_with_data_key = [
-            hook_def
-            for hook_def in [
-                *config.pre_deploy,
-                *config.pre_destroy,
-                *config.post_deploy,
-                *config.post_destroy,
-            ]
-            if hook_def.data_key == data_key
+            hook_def for hook_def in config.pre_deploy if hook_def.data_key == data_key
         ]
         if not hooks_with_data_key:
-            raise ValueError("no hook found")
+            raise ValueError(f"no hook definition found with data_key {data_key}")
         if len(hooks_with_data_key) > 1:
-            raise ValueError("more than one hook definition found with data_key")
-        return hooks_with_data_key.pop()
-
-    @staticmethod
-    def init_hook_class(
-        context: CfnginContext, hook_def: CfnginHookDefinitionModel
-    ) -> AwsLambdaHook[Any]:
-        """Initialize :class:`~awslambda.base_classes.AwsLambdaHook` subclass instance.
-
-        Args:
-            context: CFNgin context object.
-            hook_def: The :class:`~awslambda.base_classes.AwsLambdaHook` definition.
-
-        Returns:
-            The loaded AwsLambdaHook object.
-
-        """
-        kls = load_object_from_string(hook_def.path)
-        if not issubclass(kls, AwsLambdaHook):
-            raise TypeError(
-                "hook path must be a subclass of AwsLambdaHook to use this lookup"
+            raise ValueError(
+                f"more than one hook definition found with data_key {data_key}"
             )
-        return cast(AwsLambdaHook[Any], kls(context, **hook_def.args))
+        return hooks_with_data_key.pop()
 
     @classmethod
     def handle(  # pylint: disable=arguments-differ
@@ -149,6 +124,7 @@ class AwsLambdaLookup(LookupHandler):
             data model.
 
         """
+        # checks for RunwayContext to allow mocks to pass
         if isinstance(context, RunwayContext):
             raise CfnginOnlyLookupError(  # TODO make this an exception in the runway repo
                 cls.NAME
@@ -156,10 +132,32 @@ class AwsLambdaLookup(LookupHandler):
         query, _ = cls.parse(value)
         return cls.get_deployment_package_data(context, query)
 
+    @staticmethod
+    def init_hook_class(
+        context: CfnginContext, hook_def: CfnginHookDefinitionModel
+    ) -> AwsLambdaHook[Any]:
+        """Initialize :class:`~awslambda.base_classes.AwsLambdaHook` subclass instance.
+
+        Args:
+            context: CFNgin context object.
+            hook_def: The :class:`~awslambda.base_classes.AwsLambdaHook` definition.
+
+        Returns:
+            The loaded AwsLambdaHook object.
+
+        """
+        kls = load_object_from_string(hook_def.path)
+        if not hasattr(kls, "__subclasscheck__") or not issubclass(kls, AwsLambdaHook):
+            raise TypeError(
+                f"hook path {hook_def.path} for hook with data_key {hook_def.data_key} "
+                "must be a subclass of AwsLambdaHook to use this lookup"
+            )
+        return cast(AwsLambdaHook[Any], kls(context, **hook_def.args))
+
     class Code(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.Code"
+        NAME: Final[Literal["awslambda.Code"]] = "awslambda.Code"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -182,14 +180,16 @@ class AwsLambdaLookup(LookupHandler):
             """
             return Code(
                 **AwsLambdaLookup.handle(value, context, *args, **kwargs).dict(
-                    by_alias=True, exclude={"CodeSha256", "Runtime"}, exclude_none=True
+                    by_alias=True,
+                    exclude={"CodeSha256", "Runtime", "code_sha256", "runtime"},
+                    exclude_none=True,
                 )
             )
 
     class CodeSha256(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.CodeSha256"
+        NAME: Final[Literal["awslambda.CodeSha256"]] = "awslambda.CodeSha256"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -215,7 +215,7 @@ class AwsLambdaLookup(LookupHandler):
     class Runtime(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.Runtime"
+        NAME: Final[Literal["awslambda.Runtime"]] = "awslambda.Runtime"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -241,7 +241,7 @@ class AwsLambdaLookup(LookupHandler):
     class S3Bucket(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.S3Bucket"
+        NAME: Final[Literal["awslambda.S3Bucket"]] = "awslambda.S3Bucket"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -267,7 +267,7 @@ class AwsLambdaLookup(LookupHandler):
     class S3Key(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.S3Key"
+        NAME: Final[Literal["awslambda.S3Key"]] = "awslambda.S3Key"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -293,7 +293,7 @@ class AwsLambdaLookup(LookupHandler):
     class S3ObjectVersion(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: ClassVar[str] = "awslambda.S3ObjectVersion"
+        NAME: Final[Literal["awslambda.S3ObjectVersion"]] = "awslambda.S3ObjectVersion"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
