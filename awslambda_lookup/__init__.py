@@ -1,12 +1,19 @@
-"""Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses.
+"""Dedicated lookups for use with :class:`~awslambda.base_classes.AwsLambdaHook` based hooks.
 
-.. tip::
-  To this the awslambda lookup, add the following to a CFNgin config.
+.. important::
+    These lookusp does not support arguments.
+    Any arguments passed to the lookups will be discarded.
 
-  .. code-block:: yaml
+.. note::
+    To use these lookups during development, they must be manually registered
+    in the CFNgin configuration file. To simplify this, registering
+    :class:`awslambda_lookup.AwsLambdaLookup` registers all related lookups.
 
-    lookups:
-      awslambda: awslambda_lookup.AwsLambdaLookup
+    .. code-block:: yaml
+      :caption: Example
+
+      lookups:
+        awslambda: awslambda_lookup.AwsLambdaLookup
 
 """
 import sys

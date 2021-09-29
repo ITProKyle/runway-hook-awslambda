@@ -47,6 +47,15 @@ This project can be tested while it is still under development.
 
 
 .. toctree::
+  :caption: Lookups
+  :glob:
+  :hidden:
+  :maxdepth: 2
+
+  lookups/**
+
+
+.. toctree::
   :caption: Developers Guide
   :hidden:
   :maxdepth: 2

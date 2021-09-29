@@ -96,6 +96,7 @@ templates_path = ["_templates"]
 html_codeblock_linenos_style = "inline"
 html_css_files = ["css/rtd_dark.css"]
 html_favicon = None
+html_js_files = ["js/custom.js"]
 html_logo = None
 html_theme = "sphinx_rtd_theme"  # theme to use for HTML and HTML Help pages
 html_theme_options = {
@@ -136,9 +137,9 @@ napoleon_type_aliases = autodoc_type_aliases
 
 # -- Options for sphinxcontrib.apidoc  ---------------------------------------
 # https://github.com/sphinx-contrib/apidoc
-apidoc_excluded_paths = []
+apidoc_excluded_paths = [".demo", ".venv", "docs", "node_modules", "test.py", "tests"]
 apidoc_extra_args = [f"--templatedir={SRC_DIR / '_templates/apidocs'}"]
-apidoc_module_dir = "../../awslambda"
+apidoc_module_dir = "../../"
 apidoc_module_first = True
 apidoc_output_dir = "apidocs"
 apidoc_separate_modules = True

@@ -1,4 +1,29 @@
-"""Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
+"""Dedicated lookup for use with :class:`~awslambda.base_classes.AwsLambdaHook` based hooks.
+
+.. important::
+    This lookup does not support arguments.
+    Any arguments passed to the lookup directly will be discarded.
+
+.. note::
+    To use this lookup during development, it must be manually registered in the
+    CFNgin configuration file. To simplify this, registering
+    :class:`awslambda_lookup.AwsLambdaLookup` registers all related lookups.
+
+    .. code-block:: yaml
+      :caption: Example
+
+      lookups:
+        awslambda: awslambda_lookup.AwsLambdaLookup
+
+To use this hook, there must be a :class:`~awslambda.base_classes.AwsLambdaHook`
+based hook defined in the :attr:`~cfngin.config.pre_deploy` section of the CFNgin
+configuration file. This hook must also define a :attr:`~cfngin.hook.data_key`
+that is unique within the CFNgin configuration file (it can be reused in other
+CFNgin configuration files). The :attr:`~cfngin.hook.data_key` is then passed
+to the lookup as it's input/query. This allows the lookup to function during a
+``runway plan``.
+
+"""
 from __future__ import annotations
 
 import logging
@@ -25,16 +50,7 @@ LOGGER = logging.getLogger(f"runway.{__name__}")
 
 
 class AwsLambdaLookup(LookupHandler):
-    """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses.
-
-    .. important::
-        The :class:`~awslambda.base_classes.AwsLambdaHook` must be defined in
-        the current config file with a :attr:`~cfngin.hook.data_key`.
-
-    .. important::
-        This lookup does not support arguments.
-
-    """
+    """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
     NAME: Final[Literal["awslambda"]] = "awslambda"
 
