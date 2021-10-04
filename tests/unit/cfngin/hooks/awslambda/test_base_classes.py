@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import logging
-import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from mock import Mock
@@ -173,98 +172,7 @@ class TestDependencyManager:
         """Test __init__."""
         obj = DependencyManager(cfngin_context, tmp_path)
         assert obj.ctx == cfngin_context
-        assert obj.root_directory == tmp_path
-
-    def test__run_command(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
-        """Test _run_command."""
-        mock_subprocess = mocker.patch(
-            f"{MODULE}.subprocess.check_output", return_value="success"
-        )
-        obj = DependencyManager(cfngin_context, tmp_path)
-        assert obj._run_command("test") == mock_subprocess.return_value
-        mock_subprocess.assert_called_once_with(
-            "test",
-            cwd=tmp_path,
-            env=obj.ctx.env.vars,
-            shell=True,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-    def test__run_command_no_suppress_output(
-        self, cfngin_context: CfnginContext, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
-        """Test _run_command."""
-        mock_subprocess = mocker.patch(
-            f"{MODULE}.subprocess.check_call", return_value=0
-        )
-        obj = DependencyManager(cfngin_context, tmp_path)
-        assert not obj._run_command(["foo", "bar"], suppress_output=False)
-        mock_subprocess.assert_called_once_with(
-            "foo bar",
-            cwd=tmp_path,
-            env=obj.ctx.env.vars,
-            shell=True,
-        )
-
-    @pytest.mark.parametrize(
-        "prefix, provided, expected",
-        [
-            (None, "foo", "--foo"),
-            ("-", "foo_bar", "-foo-bar"),
-            ("--", "foo-bar", "--foo-bar"),
-        ],
-    )
-    def test_convert_to_cli_arg(
-        self, expected: str, prefix: Optional[str], provided: str
-    ) -> None:
-        """Test convert_to_cli_arg."""
-        if prefix:
-            assert (
-                DependencyManager.convert_to_cli_arg(provided, prefix=prefix)
-                == expected
-            )
-        else:
-            assert DependencyManager.convert_to_cli_arg(provided) == expected
-
-    @pytest.mark.parametrize("return_value", [False, True])
-    def test_found_in_path(self, mocker: MockerFixture, return_value: bool) -> None:
-        """Test found_in_path."""
-        exe = mocker.patch.object(
-            DependencyManager, "EXECUTABLE", "foo.exe", create=True
-        )
-        mock_which = Mock(return_value=return_value)
-        mocker.patch(f"{MODULE}.shutil", which=mock_which)
-        assert DependencyManager.found_in_path() is return_value
-        mock_which.assert_called_once_with(exe)
-
-    @pytest.mark.parametrize(
-        "provided, expected",
-        [
-            ({}, []),
-            ({"is_flag": True}, ["--is-flag"]),
-            ({"is_flag": False}, []),
-            ({"key": "val", "is-flag": True}, ["--key", "val", "--is-flag"]),
-            ({"user": ["foo", "bar"]}, ["--user", "foo", "--user", "bar"]),
-        ],
-    )
-    def test_generate_command(
-        self,
-        expected: List[str],
-        mocker: MockerFixture,
-        provided: Dict[str, Any],
-    ) -> None:
-        """Test generate_command."""
-        exe = mocker.patch.object(
-            DependencyManager, "EXECUTABLE", "test.exe", create=True
-        )
-        assert DependencyManager.generate_command("command", **provided) == [
-            exe,
-            "command",
-            *expected,
-        ]
+        assert obj.cwd == tmp_path
 
     def test_version(self, tmp_path: Path) -> None:
         """Test version."""

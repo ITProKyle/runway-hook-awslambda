@@ -2,22 +2,16 @@
 from __future__ import annotations
 
 import logging
-import shlex
-import shutil
-import subprocess
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Generic,
-    List,
     Optional,
-    Sequence,
     Set,
     Tuple,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -27,6 +21,7 @@ from runway.compat import cached_property
 from typing_extensions import Literal
 
 from .constants import BASE_WORK_DIR
+from .mixins import CliInterfaceMixin
 from .models.args import AwsLambdaHookArgs
 from .models.responses import AwsLambdaHookDeployResponse
 from .source_code import SourceCode
@@ -47,7 +42,7 @@ _AwsLambdaHookArgsTypeVar = TypeVar(
 )
 
 
-class DependencyManager:
+class DependencyManager(CliInterfaceMixin):
     """Dependency manager for the AWS Lambda runtime.
 
     Dependency managers are interfaced with via subprocess to ensure that the
@@ -57,120 +52,22 @@ class DependencyManager:
     """
 
     CONFIG_FILES: ClassVar[Tuple[str, ...]]
-    EXECUTABLE: ClassVar[str]
 
-    ctx: CfnginContext
-    root_directory: Path
+    def __init__(self, context: CfnginContext, cwd: StrPath) -> None:
+        """Instantiate class.
 
-    def __init__(self, context: CfnginContext, root_directory: StrPath) -> None:
-        """Instantiate class."""
+        Args:
+            context: CFNgin or Runway context object.
+            cwd: Working directory where commands will be run.
+
+        """
         self.ctx = context
-        self.root_directory = (
-            root_directory if isinstance(root_directory, Path) else Path(root_directory)
-        )
+        self.cwd = cwd if isinstance(cwd, Path) else Path(cwd)
 
     @cached_property
     def version(self) -> str:
         """Get executable version."""
         raise NotImplementedError
-
-    @overload
-    def _run_command(
-        self,
-        command: Union[Sequence[str], str],
-        *,
-        suppress_output: Literal[True] = ...,
-    ) -> str:
-        ...
-
-    @overload
-    def _run_command(
-        self,
-        command: Union[Sequence[str], str],
-        *,
-        suppress_output: Literal[False] = ...,
-    ) -> None:
-        ...
-
-    def _run_command(
-        self, command: Union[Sequence[str], str], *, suppress_output: bool = True
-    ) -> Optional[str]:
-        """Run command.
-
-        Args:
-            command: Command to pass to shell to execute.
-            suppress_output: If ``True``, the output of the subprocess written
-                to ``sys.stdout`` and ``sys.stderr`` will be captured and
-                returned as a string instead of being being written directly.
-
-        """
-        cmd_str = command if isinstance(command, str) else shlex.join(command)
-        LOGGER.verbose("running command: %s", cmd_str)
-        if suppress_output:
-            return subprocess.check_output(
-                cmd_str,
-                cwd=self.root_directory,
-                env=self.ctx.env.vars,
-                shell=True,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-        subprocess.check_call(
-            cmd_str,
-            cwd=self.root_directory,
-            env=self.ctx.env.vars,
-            shell=True,
-        )
-        return None
-
-    @classmethod
-    def generate_command(
-        cls,
-        command: Union[List[str], str],
-        **kwargs: Optional[Union[bool, Sequence[str], str]],
-    ) -> List[str]:
-        """Generate command to be executed and log it.
-
-        Args:
-            command: Command to run.
-            args: Additional args to pass to the command.
-
-        Returns:
-            The full command to be passed into a subprocess.
-
-        """
-        cmd = [cls.EXECUTABLE, *(command if isinstance(command, list) else [command])]
-        cmd.extend(cls._generate_command_handle_kwargs(**kwargs))
-        LOGGER.debug("generated command: %s", shlex.join(cmd))
-        return cmd
-
-    @classmethod
-    def _generate_command_handle_kwargs(
-        cls, **kwargs: Optional[Union[bool, Sequence[str], str]]
-    ) -> List[str]:
-        """Handle kwargs passed to generate_command."""
-        result: List[str] = []
-        for k, v in kwargs.items():
-            if isinstance(v, str):
-                result.extend([cls.convert_to_cli_arg(k), v])
-            elif isinstance(v, (list, set, tuple)):
-                for i in cast(Sequence[str], v):
-                    result.extend([cls.convert_to_cli_arg(k), i])
-            elif isinstance(v, bool) and v:
-                result.append(cls.convert_to_cli_arg(k))
-        return result
-
-    @classmethod
-    def found_in_path(cls) -> bool:
-        """Determine if executable is found in $PATH."""
-        if shutil.which(cls.EXECUTABLE):
-            return True
-        return False
-
-    @staticmethod
-    def convert_to_cli_arg(arg_name: str, *, prefix: str = "--") -> str:
-        """Convert string kwarg name into a CLI argument."""
-        return f"{prefix}{arg_name.replace('_', '-')}"
 
 
 class Project(Generic[_AwsLambdaHookArgsTypeVar]):
