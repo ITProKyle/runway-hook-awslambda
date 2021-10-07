@@ -12,6 +12,7 @@ from typing_extensions import Literal
 from ..base_classes import Project
 from ..constants import BASE_WORK_DIR
 from ..models.args import PythonFunctionHookArgs
+from ._python_docker import PythonDockerDependencyInstaller
 from .dependency_managers import (
     Pip,
     Pipenv,
@@ -60,6 +61,14 @@ class PythonRequirementsNotFoundError(CfnginError):
 
 class PythonProject(Project[PythonFunctionHookArgs]):
     """Python project."""
+
+    @cached_property
+    def docker(self) -> Optional[PythonDockerDependencyInstaller]:
+        """Docker interface that can be used to build the project."""
+        if self.args.docker.disable:
+            return None
+        # TODO ensure docker is available
+        return PythonDockerDependencyInstaller(self.ctx, self)
 
     @cached_property
     def metadata_files(self) -> Tuple[Path, ...]:
@@ -153,6 +162,11 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         raise PythonRequirementsNotFoundError(self.project_root)
 
     @cached_property
+    def runtime(self) -> str:
+        """Runtime of the deployment package."""
+        return self.args.runtime  # TODO account for docker
+
+    @cached_property
     def supported_metadata_files(self) -> Set[str]:
         """Names of all supported metadata files.
 
@@ -185,10 +199,13 @@ class PythonProject(Project[PythonFunctionHookArgs]):
     def install_dependencies(self) -> None:
         """Install project dependencies."""
         LOGGER.debug("installing dependencies to %s...", self.dependency_directory)
-        self.pip.install(
-            requirements=self.requirements_txt,
-            target=self.dependency_directory,
-        )
+        if self.docker:
+            self.docker.install()
+        else:
+            self.pip.install(
+                requirements=self.requirements_txt,
+                target=self.dependency_directory,
+            )
         LOGGER.debug(
             "dependencies successfully installed to %s", self.dependency_directory
         )
