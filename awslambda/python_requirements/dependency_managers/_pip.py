@@ -74,6 +74,7 @@ class Pip(DependencyManager):
                 self.generate_command(
                     "install",
                     disable_pip_version_check=True,
+                    no_input=True,  # FIXME update tests
                     requirement=str(requirements),
                     target=str(target),
                 ),
