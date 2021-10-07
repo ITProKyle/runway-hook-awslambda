@@ -100,7 +100,7 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 
     @cached_property
     def dependency_directory(self) -> Path:
-        """Directory use as the target of ``pip install --target``."""
+        """Directory to use as the target of ``pip install --target``."""
         result = self.build_directory / "dependencies"
         result.mkdir(exist_ok=True, parents=True)
         return result
