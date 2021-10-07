@@ -9,7 +9,9 @@
         "**/.venv",
         "**/docs",
         "**/node_modules",
-        "**/typings"
+        "**/typings",
+        "test.py",
+        "test*.py"
     ],
     "pythonVersion": "3.8",
     "reportDuplicateImport": "none",
