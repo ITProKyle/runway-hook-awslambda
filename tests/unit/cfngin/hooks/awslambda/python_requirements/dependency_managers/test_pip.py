@@ -72,6 +72,7 @@ class TestPip:
         mock_generate_command.assert_called_once_with(
             "install",
             disable_pip_version_check=True,
+            no_input=True,
             requirement=str(requirements_txt),
             target=str(target),
         )
