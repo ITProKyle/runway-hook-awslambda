@@ -7,6 +7,7 @@ import shlex
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Dict,
     Generic,
     Iterator,
@@ -26,10 +27,12 @@ from runway.compat import cached_property
 from .constants import AWS_SAM_BUILD_IMAGE_PREFIX
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from runway.context import CfnginContext, RunwayContext
 
     from awslambda.base_classes import Project
-    from awslambda.models.args import AwsLambdaHookArgs
+    from awslambda.models.args import AwsLambdaHookArgs, DockerOptions
 
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
@@ -44,6 +47,16 @@ _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound="Project[AwsLambdaHookArgs]")
 
 class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     """Docker dependency installer."""
+
+    #: Mount path were dependencies will be installed to within the Docker container.
+    #: Other files can be moved to this directory to be included in the deployment package.
+    DEPENDENCY_DIR: ClassVar[str] = "/var/task/lambda"
+    #: Mount path where the project directory is available within the Docker container.
+    PROJECT_DIR: ClassVar[str] = "/var/task/project"
+
+    client: DockerClient  #: Docker client.
+    ctx: Union[CfnginContext, RunwayContext]  #: Context object.
+    options: DockerOptions  #: Hook arguments specific to Docker.
 
     def __init__(
         self,
@@ -89,7 +102,7 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
 
     @cached_property
     def environmet_variables(self) -> Dict[str, str]:
-        """Environment variables to pass to the docker container.
+        """Environment variables to pass to the Docker container.
 
         This is a subset of the environment variables stored in the context
         object as some will cause issues if they are passed.
@@ -99,34 +112,20 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
 
     @cached_property
     def image(self) -> Union[Image, str]:
-        """Docker image that will be used."""
+        """Docker image that will be used.
 
-        def _get_image(image_name: str) -> Image:
-            try:
-                if not self.options.pull:
-                    return self.client.images.get(image_name)
-                LOGGER.info("pulling docker image %s...", image_name)
-            except ImageNotFound:
-                LOGGER.info("image not found; pulling docker image %s...", image_name)
-            return self.client.images.pull(repository=image_name)
+        Raises:
+            ValueError: Insufficient data to determine the desired Docker image.
 
+        """
         if self.options.file:
-            image, log_stream = self.client.images.build(
-                dockerfile=self.options.file.name,
-                forcerm=True,
-                path=str(self.options.file.parent),
-                pull=self.options.pull,
-            )
-            self.log_docker_msg_dict(log_stream)
-            image.tag("runway.cfngin.hooks.awslambda", tag="latest")
-            image.reload()
-            LOGGER.info("built docker image %s (%s)", ", ".join(image.tags), image.id)
-            return image
+            return self.build_image(self.options.file)
         if self.options.image:
-            return _get_image(self.options.image)
+            return self.pull_image(self.options.image, force=self.options.pull)
         if self.project.args.runtime:
-            return _get_image(
-                f"{AWS_SAM_BUILD_IMAGE_PREFIX}{self.project.args.runtime}:latest"
+            return self.pull_image(
+                f"{AWS_SAM_BUILD_IMAGE_PREFIX}{self.project.args.runtime}:latest",
+                force=self.options.pull,
             )
         raise ValueError("docker.file, docker.image, or runtime required")
 
@@ -141,13 +140,48 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
 
     @cached_property
     def runtime(self) -> Optional[str]:
-        """AWS Lambda runtime determined from the docker container."""
+        """AWS Lambda runtime determined from the Docker container."""
         return None
+
+    def build_image(
+        self,
+        docker_file: Path,
+        *,
+        name: str = "runway.cfngin.hooks.awslambda",
+        tag: str = "latest",
+    ) -> Image:
+        """Build Docker image from Dockerfile.
+
+        This method is exposed as a low-level interface.
+        :attr:`~awslambda.docker.DockerDependencyInstaller.image` should be
+        used in place for this for most cases.
+
+        Args:
+            docker_file: Path to the Dockerfile to build. This path should be
+                absolute, must exist, and must be a file.
+            name: Name of the Docker image. The name should not contain a tag.
+            tag: Tag to apply to the image after it is built.
+
+        Returns:
+            Object representing the image that was built.
+
+        """
+        image, log_stream = self.client.images.build(
+            dockerfile=docker_file.name,
+            forcerm=True,
+            path=str(docker_file.parent),
+            pull=self.options.pull,
+        )
+        self.log_docker_msg_dict(log_stream)
+        image.tag(name, tag=tag)
+        image.reload()
+        LOGGER.info("built docker image %s (%s)", ", ".join(image.tags), image.id)
+        return image
 
     def log_docker_msg_bytes(
         self, stream: Iterator[bytes], *, level: int = logging.INFO
     ) -> List[str]:
-        """Log docker output message from blocking generator that return bytes.
+        """Log Docker output message from blocking generator that return bytes.
 
         Args:
             stream: Blocking generator that returns log messages as bytes.
@@ -167,7 +201,7 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     def log_docker_msg_dict(
         self, stream: Iterator[Dict[str, Any]], *, level: int = logging.INFO
     ) -> List[str]:
-        """Log docker output message from blocking generator that return dict.
+        """Log Docker output message from blocking generator that return dict.
 
         Args:
             stream: Blocking generator that returns log messages as a dict.
@@ -188,18 +222,42 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
         return result
 
     def install(self) -> None:
-        """Install dependencies using docker.
+        """Install dependencies using Docker.
 
         Commands are run as they are defined in the following cached properties:
 
-        - ``install_commands``
-        - ``post_install_commands``
+        - :attr:`~awslambda.docker.DockerDependencyInstaller.install_commands`
+        - :attr:`~awslambda.docker.DockerDependencyInstaller.post_install_commands`
 
         """
         for cmd in self.install_commands:
             self.run_command(cmd)
         for cmd in self.post_install_commands:
             self.run_command(cmd)
+
+    def pull_image(self, name: str, *, force: bool = True) -> Image:
+        """Pull a Docker image from a repository if it does not exist locally.
+
+        This method is exposed as a low-level interface.
+        :attr:`~awslambda.docker.DockerDependencyInstaller.image` should be
+        used in place for this for most cases.
+
+        Args:
+            name: Name of the Docker image including tag.
+            force: Always pull the image even if it exists locally.
+                This will ensure that the latest version is always used.
+
+        Returns:
+            Object representing the image found locally or pulled from a repository.
+
+        """
+        try:
+            if not force:
+                return self.client.images.get(name)
+            LOGGER.info("pulling docker image %s...", name)
+        except ImageNotFound:
+            LOGGER.info("image not found; pulling docker image %s...", name)
+        return self.client.images.pull(repository=name)
 
     def run_command(self, command: str, *, level: int = logging.INFO) -> List[str]:
         """Execute equivalent of ``docker container run``.
