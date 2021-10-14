@@ -53,10 +53,10 @@ class TestAwsLambdaHook:
             "deploy"
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
-            code_sha256=deployment_package.code_sha256,
-            object_key=deployment_package.object_key,
-            object_version_id=deployment_package.object_version_id,
-            runtime=deployment_package.runtime,
+            code_sha256=deployment_package.code_sha256,  # type: ignore
+            object_key=deployment_package.object_key,  # type: ignore
+            object_version_id=deployment_package.object_version_id,  # type: ignore
+            runtime=deployment_package.runtime,  # type: ignore
         )
 
     def test_build_response_destroy(self) -> None:
@@ -81,10 +81,10 @@ class TestAwsLambdaHook:
             "plan"
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
-            code_sha256=deployment_package.code_sha256,
-            object_key=deployment_package.object_key,
-            object_version_id=deployment_package.object_version_id,
-            runtime=deployment_package.runtime,
+            code_sha256=deployment_package.code_sha256,  # type: ignore
+            object_key=deployment_package.object_key,  # type: ignore
+            object_version_id=deployment_package.object_version_id,  # type: ignore
+            runtime=deployment_package.runtime,  # type: ignore
         )
 
     def test_build_response_plan_handle_file_not_found_error(
