@@ -84,6 +84,22 @@ class TestPythonProject:
             tmp_requirements_txt.unlink.assert_not_called()
         mock_rmtree.assert_called_once_with(dependency_directory, ignore_errors=True)
 
+    @pytest.mark.parametrize("disabled", [False, True])
+    def test_docker(self, disabled: bool, mocker: MockerFixture) -> None:
+        """Test docker."""
+        ctx = Mock()
+        mock_class = mocker.patch(
+            f"{MODULE}.PythonDockerDependencyInstaller", return_value="success"
+        )
+        obj = PythonProject(Mock(docker=Mock(disable=disabled)), ctx)
+
+        if disabled:
+            assert not obj.docker
+            mock_class.assert_not_called()
+        else:
+            assert obj.docker == mock_class.return_value
+            mock_class.assert_called_once_with(ctx, obj)
+
     def test_install_dependencies(self, mocker: MockerFixture) -> None:
         """Test install_dependencies."""
         dependency_directory = mocker.patch.object(
@@ -97,6 +113,17 @@ class TestPythonProject:
         mock_pip.install.assert_called_once_with(
             requirements=requirements_txt, target=dependency_directory
         )
+
+    def test_install_dependencies_docker(self, mocker: MockerFixture) -> None:
+        """Test install_dependencies using Docker."""
+        mock_docker = mocker.patch.object(PythonProject, "docker")
+        mock_pip = mocker.patch.object(PythonProject, "pip")
+        mocker.patch.object(
+            PythonProject, "dependency_directory", "dependency_directory"
+        )
+        assert not PythonProject(Mock(), Mock()).install_dependencies()
+        mock_docker.install.assert_called_once_with()
+        mock_pip.assert_not_called()
 
     def test_install_dependencies_does_not_catch_errors(
         self, mocker: MockerFixture
@@ -347,6 +374,10 @@ class TestPythonProject:
         assert (
             f"{tmp_path} does not contain a requirements file" in excinfo.value.message
         )
+
+    def test_runtime(self) -> None:
+        """Test runtime."""
+        assert PythonProject(Mock(runtime="foo"), Mock()).runtime == "foo"
 
     @pytest.mark.parametrize(
         "use_pipenv, use_poetry, update_expected",
