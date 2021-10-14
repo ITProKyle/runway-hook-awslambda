@@ -36,6 +36,9 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
+DEFAULT_IMAGE_NAME = "runway.cfngin.hooks.awslambda"
+DEFAULT_IMAGE_TAG = "latest"
+
 _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound="Project[AwsLambdaHookArgs]")
 
 # TODO set minimum version of docker SDK to solidify types
@@ -84,21 +87,16 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
         """Bind mounts that will be used by the container."""
         return [
             Mount(
-                target="/var/task/lambda",
+                target=self.DEPENDENCY_DIR,
                 source=str(self.project.dependency_directory),
                 type="bind",
             ),
             Mount(
-                target="/var/task/project",
+                target=self.PROJECT_DIR,
                 source=str(self.project.project_root),
                 type="bind",
             ),
         ]
-
-    @cached_property
-    def install_commands(self) -> List[str]:
-        """Commands to run to install dependencies."""
-        return []
 
     @cached_property
     def environmet_variables(self) -> Dict[str, str]:
@@ -130,11 +128,16 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
         raise ValueError("docker.file, docker.image, or runtime required")
 
     @cached_property
+    def install_commands(self) -> List[str]:
+        """Commands to run to install dependencies."""
+        return []
+
+    @cached_property
     def post_install_commands(self) -> List[str]:
         """Commands to run after dependencies have been installed."""
         return [
             shlex.join(  # TODO test on windows
-                ["chown", "-R", f"{os.getuid()}:{os.getgid()}", "/var/task/lambda"]
+                ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.DEPENDENCY_DIR]
             )
         ]
 
@@ -147,8 +150,8 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
         self,
         docker_file: Path,
         *,
-        name: str = "runway.cfngin.hooks.awslambda",
-        tag: str = "latest",
+        name: str = DEFAULT_IMAGE_NAME,
+        tag: str = DEFAULT_IMAGE_TAG,
     ) -> Image:
         """Build Docker image from Dockerfile.
 
@@ -277,7 +280,7 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
             environment=self.environmet_variables,
             image=self.image,
             mounts=self.bind_mounts,
-            working_dir=str(self.project.project_root),
+            working_dir=self.PROJECT_DIR,
         )
         try:
             container.start()
@@ -289,5 +292,5 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
             container.remove(force=True)  # always remove container
             if exit_code != 0:
                 raise RuntimeError(  # TODO make custom error
-                    f"docker container exited with non-zero exit code {exit_code}",
+                    f"Docker container exited with non-zero exit code: {exit_code}",
                 )
