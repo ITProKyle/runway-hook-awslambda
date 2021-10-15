@@ -1,0 +1,122 @@
+"""Test runway.cfngin.hooks.awslambda.python_requirements._python_docker."""
+# pylint: disable=no-self-use,protected-access
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Optional
+
+import pytest
+from docker.types.services import Mount
+from mock import Mock
+
+from awslambda.python_requirements._python_docker import PythonDockerDependencyInstaller
+from awslambda.utils import Version
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pytest_mock import MockerFixture
+
+MODULE = "awslambda.python_requirements._python_docker"
+
+
+class TestPythonDockerDependencyInstaller:
+    """Test PythonDockerDependencyInstaller."""
+
+    def test_bind_mounts(self, tmp_path: Path) -> None:
+        """Test bind_mounts."""
+        requirements_txt = tmp_path / "requirements.txt"
+        project = Mock(
+            dependency_directory="dependency_directory",
+            project_root="project_root",
+            requirements_txt=requirements_txt,
+        )
+        obj = PythonDockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
+        assert obj.bind_mounts == [
+            Mount(
+                target="/var/task/lambda", source="dependency_directory", type="bind"
+            ),
+            Mount(target="/var/task/project", source="project_root", type="bind"),
+            Mount(
+                target=f"/var/task/{requirements_txt.name}",
+                source=str(requirements_txt),
+                type="bind",
+            ),
+        ]
+
+    def test_environmet_variables(self) -> None:
+        """Test environmet_variables."""
+        expected = {"DOCKER_SETTINGS": "something", "PIP_SETTINGS": "foobar"}
+        env_vars = {"FOO": "BAR", "PATH": "/dev/null", **expected}
+        ctx = Mock(env=Mock(vars=env_vars))
+        obj = PythonDockerDependencyInstaller(ctx, Mock(), client=Mock())  # type: ignore
+        assert obj.environmet_variables == expected
+
+    def test_install_commands(self, mocker: MockerFixture, tmp_path: Path) -> None:
+        """Test install_commands."""
+        mock_generate_command = mocker.patch(
+            f"{MODULE}.Pip.generate_command", return_value=["cmd"]
+        )
+        mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
+        requirements_txt = tmp_path / "requirements.txt"
+        project = Mock(requirements_txt=requirements_txt)
+        obj = PythonDockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
+        assert obj.install_commands == [mock_join.return_value]
+        mock_generate_command.assert_called_once_with(
+            "install",
+            disable_pip_version_check=True,
+            no_input=True,
+            requirement=f"/var/task/{requirements_txt.name}",
+            target=PythonDockerDependencyInstaller.DEPENDENCY_DIR,
+        )
+        mock_join.assert_called_once_with(mock_generate_command.return_value)
+
+    def test_python_version(self, mocker: MockerFixture) -> None:
+        """Test python_version."""
+        version = "3.10.0"
+        mock_run_command = mocker.patch.object(
+            PythonDockerDependencyInstaller,
+            "run_command",
+            return_value=[f"Python {version}"],
+        )
+        mock_version_cls = mocker.patch(f"{MODULE}.Version", return_value="success")
+        obj = PythonDockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
+        assert obj.python_version == mock_version_cls.return_value
+        mock_run_command.assert_called_once_with(
+            "python --version", level=logging.DEBUG
+        )
+        mock_version_cls.assert_called_once_with(version)
+
+    def test_python_version_not_found(self, mocker: MockerFixture) -> None:
+        """Test python_version not found."""
+        mock_run_command = mocker.patch.object(
+            PythonDockerDependencyInstaller,
+            "run_command",
+            return_value=[""],
+        )
+        mock_version_cls = mocker.patch(f"{MODULE}.Version")
+        obj = PythonDockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
+        assert not obj.python_version
+        mock_run_command.assert_called_once_with(
+            "python --version", level=logging.DEBUG
+        )
+        mock_version_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "version, expected",
+        [
+            (Version("3.10.0"), "python3.10"),
+            (Version("3.9.7"), "python3.9"),
+            (Version("3.8.4"), "python3.8"),
+            (None, None),
+        ],
+    )
+    def test_runtime(
+        self, expected: Optional[str], mocker: MockerFixture, version: Optional[Version]
+    ) -> None:
+        """Test runtime."""
+        mocker.patch.object(PythonDockerDependencyInstaller, "python_version", version)
+        assert (
+            PythonDockerDependencyInstaller(Mock(), Mock(), client=Mock()).runtime
+            == expected
+        )

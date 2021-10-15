@@ -35,21 +35,6 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]
         ]
 
     @cached_property
-    def install_commands(self) -> List[str]:
-        """Commands to run to install dependencies."""
-        return [
-            shlex.join(
-                Pip.generate_command(
-                    "install",
-                    disable_pip_version_check=True,
-                    no_input=True,
-                    requirement=f"/var/task/{self.project.requirements_txt.name}",
-                    target="/var/task/lambda",
-                )
-            )
-        ]
-
-    @cached_property
     def environmet_variables(self) -> Dict[str, str]:
         """Environment variables to pass to the docker container.
 
@@ -62,6 +47,21 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]
             k: v for k, v in self.ctx.env.vars.items() if k.startswith("PIP")
         }
         return {**docker_env_vars, **pip_env_vars}
+
+    @cached_property
+    def install_commands(self) -> List[str]:
+        """Commands to run to install dependencies."""
+        return [
+            shlex.join(
+                Pip.generate_command(
+                    "install",
+                    disable_pip_version_check=True,
+                    no_input=True,
+                    requirement=f"/var/task/{self.project.requirements_txt.name}",
+                    target=self.DEPENDENCY_DIR,
+                )
+            )
+        ]
 
     @cached_property
     def python_version(self) -> Optional[Version]:
