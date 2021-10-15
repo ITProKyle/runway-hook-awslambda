@@ -43,6 +43,9 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
         bucket_name: Name of the S3 Bucket where deployment package is/will
             be stored. The Bucket must be in the same region the Lambda =
             Function is being deployed in.
+        cache_dir: Explicitly define the location directory.
+            Must be an absolute path or it will be relative to the CFNgin
+            module directory.
         docker: Docker options.
         extend_gitignore: gitignore rules that should be added to the rules
             already defined in a ``.gitignore`` file in the source code directory.
@@ -52,17 +55,21 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
         object_prefix: Prefix to add to the S3 Object key.
         runtime: Runtime of the Lambda Function.
         source_code: Path to the Lambda Function source code.
+        use_cache: Whether to use a cache directory with pip that will persist
+            builds.
 
     """
 
     # docstring & atters must be copied to subclasses for the attributes to be documented
 
     bucket_name: str
+    cache_dir: Optional[DirectoryPath] = None  # TODO resolve path
     docker: DockerOptions = DockerOptions()
     extend_gitignore: List[str] = []
     object_prefix: Optional[str] = None
     runtime: str
     source_code: DirectoryPath
+    use_cache: bool = True
 
     @validator("source_code", allow_reuse=True)
     def _resolve_path(cls, v: Path) -> Path:
@@ -76,6 +83,9 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
         bucket_name: Name of the S3 Bucket where deployment package is/will
             be stored. The Bucket must be in the same region the Lambda =
             Function is being deployed in.
+        cache_dir: Explicitly define the location directory.
+            Must be an absolute path or it will be relative to the CFNgin
+            module directory.
         docker: Docker options.
         extend_gitignore: gitignore rules that should be added to the rules
             already defined in a ``.gitignore`` file in the source code directory.
@@ -88,12 +98,16 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
             runtime supported by AWS Lambda
             (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
         source_code: Path to the Lambda Function source code.
+        use_cache: Whether to use a cache directory with pip that will persist
+            builds.
         use_pipenv: Whether pipenv should be used if determined appropriate.
         use_poetry: Whether poetry should be used if determined appropriate.
 
     """
 
     bucket_name: str
+    cache_dir: Optional[DirectoryPath] = None  # TODO resolve path
+    docker: DockerOptions = DockerOptions()
     extend_gitignore: List[str] = []
     extend_pip_args: Optional[List[str]] = None
     object_prefix: Optional[str] = None
@@ -101,6 +115,7 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
     # TODO get runtime from custom image
     runtime: str = f"python{sys.version_info.major}.{sys.version_info.minor}"
     source_code: DirectoryPath
+    use_cache: bool = True
     use_pipenv: bool = True
     use_poetry: bool = True
 

@@ -109,9 +109,14 @@ class TestPythonProject:
         requirements_txt = mocker.patch.object(
             PythonProject, "requirements_txt", "requirements_txt"
         )
-        assert not PythonProject(Mock(), Mock()).install_dependencies()
+        assert not PythonProject(
+            Mock(cache_dir="foo", use_cache=True), Mock()
+        ).install_dependencies()
         mock_pip.install.assert_called_once_with(
-            requirements=requirements_txt, target=dependency_directory
+            cache_dir="foo",
+            no_cache_dir=False,
+            requirements=requirements_txt,
+            target=dependency_directory,
         )
 
     def test_install_dependencies_docker(self, mocker: MockerFixture) -> None:
@@ -139,9 +144,14 @@ class TestPythonProject:
             PythonProject, "requirements_txt", "requirements_txt"
         )
         with pytest.raises(PipInstallFailedError):
-            assert not PythonProject(Mock(), Mock()).install_dependencies()
+            assert not PythonProject(
+                Mock(cache_dir="foo", use_cache=True), Mock()
+            ).install_dependencies()
         mock_pip.install.assert_called_once_with(
-            requirements=requirements_txt, target=dependency_directory
+            cache_dir="foo",
+            no_cache_dir=False,
+            requirements=requirements_txt,
+            target=dependency_directory,
         )
 
     @pytest.mark.parametrize(

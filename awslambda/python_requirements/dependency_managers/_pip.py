@@ -55,10 +55,50 @@ class Pip(DependencyManager):
         """Get pip version."""
         return self._run_command([self.EXECUTABLE, "--version"])
 
-    def install(self, *, requirements: StrPath, target: StrPath) -> Path:
+    @classmethod
+    def generate_install_command(
+        cls,
+        *,
+        cache_dir: Optional[StrPath] = None,
+        no_cache_dir: bool = False,
+        requirements: StrPath,
+        target: StrPath,
+    ) -> List[str]:
+        """Generate the command that when run will install dependencies.
+
+        This method is exposed to easily format the command to be run by with
+        a subprocess or within a Docker container.
+
+        Args:
+            cache_dir: Store the cache data in the provided directory.
+            no_cache_dir: Disable the cache.
+            requirements: Path to a ``requirements.txt`` file.
+            target: Path to a directory where dependencies will be installed.
+
+        """
+        return cls.generate_command(
+            "install",
+            cache_dir=str(cache_dir) if cache_dir else None,
+            disable_pip_version_check=True,
+            no_cache_dir=no_cache_dir,
+            no_input=True,
+            requirement=str(requirements),
+            target=str(target),
+        )
+
+    def install(
+        self,
+        *,
+        cache_dir: Optional[StrPath] = None,
+        no_cache_dir: bool = False,
+        requirements: StrPath,
+        target: StrPath,
+    ) -> Path:
         """Install dependencies to a target directory.
 
         Args:
+            cache_dir: Store the cache data in the provided directory.
+            no_cache_dir: Disable the cache.
             requirements: Path to a ``requirements.txt`` file.
             target: Path to a directory where dependencies will be installed.
 
@@ -71,12 +111,11 @@ class Pip(DependencyManager):
         target.mkdir(exist_ok=True, parents=True)
         try:
             self._run_command(
-                self.generate_command(
-                    "install",
-                    disable_pip_version_check=True,
-                    no_input=True,
-                    requirement=str(requirements),
-                    target=str(target),
+                self.generate_install_command(
+                    cache_dir=cache_dir,
+                    no_cache_dir=no_cache_dir,
+                    requirements=requirements,
+                    target=target,
                 ),
                 suppress_output=False,
             )

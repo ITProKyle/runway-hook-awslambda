@@ -69,7 +69,9 @@ class TestDockerDependencyInstaller:
     def test_bind_mounts(self) -> None:
         """Test bind_mounts."""
         project = Mock(
-            dependency_directory="dependency_directory", project_root="project_root"
+            cache_dir=None,
+            dependency_directory="dependency_directory",
+            project_root="project_root",
         )
         obj = DockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
         assert obj.bind_mounts == [
@@ -77,6 +79,22 @@ class TestDockerDependencyInstaller:
                 target="/var/task/lambda", source="dependency_directory", type="bind"
             ),
             Mount(target="/var/task/project", source="project_root", type="bind"),
+        ]
+
+    def test_bind_mounts_cache_dir(self) -> None:
+        """Test bind_mounts with cache directory."""
+        project = Mock(
+            cache_dir="cache_dir",
+            dependency_directory="dependency_directory",
+            project_root="project_root",
+        )
+        obj = DockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
+        assert obj.bind_mounts == [
+            Mount(
+                target="/var/task/lambda", source="dependency_directory", type="bind"
+            ),
+            Mount(target="/var/task/project", source="project_root", type="bind"),
+            Mount(target="/var/task/cache_dir", source="cache_dir", type="bind"),
         ]
 
     @pytest.mark.parametrize(
@@ -208,13 +226,20 @@ class TestDockerDependencyInstaller:
         post_install_commands = mocker.patch.object(
             DockerDependencyInstaller, "post_install_commands", ["post-install"]
         )
+        pre_install_commands = mocker.patch.object(
+            DockerDependencyInstaller, "pre_install_commands", ["pre-install"]
+        )
         run_command = mocker.patch.object(
             DockerDependencyInstaller, "run_command", return_value=["foo"]
         )
         obj = DockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
         assert not obj.install()
         run_command.assert_has_calls(
-            [call(install_commands[0]), call(post_install_commands[0])]  # type: ignore
+            [  # type: ignore
+                call(pre_install_commands[0]),
+                call(install_commands[0]),
+                call(post_install_commands[0]),
+            ]
         )
 
     def test_install_commands(self) -> None:
@@ -227,7 +252,7 @@ class TestDockerDependencyInstaller:
         """Test log_docker_msg_bytes."""
         msg = "foobar"
         obj = DockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
-        docker_logger = mocker.patch.object(obj, "_docker_logger")
+        docker_logger = mocker.patch.object(obj, "_docker_logger")  # type: ignore
         assert obj.log_docker_msg_bytes(iter([f"{msg}\n".encode()]), level=level) == [
             msg
         ]
@@ -238,7 +263,7 @@ class TestDockerDependencyInstaller:
         """Test log_docker_msg_dict."""
         msgs = ["foo", "bar", "foobar"]
         obj = DockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
-        docker_logger = mocker.patch.object(obj, "_docker_logger")
+        docker_logger = mocker.patch.object(obj, "_docker_logger")  # type: ignore
         assert (
             obj.log_docker_msg_dict(
                 iter(
@@ -256,9 +281,30 @@ class TestDockerDependencyInstaller:
 
     def test_post_install_commands(self) -> None:
         """Test post_install_commands."""
-        obj = DockerDependencyInstaller(Mock(), Mock(), client=Mock())  # type: ignore
+        obj = DockerDependencyInstaller(Mock(), Mock(cache_dir=False), client=Mock())  # type: ignore
         assert obj.post_install_commands == [
             f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda"
+        ]
+
+    def test_post_install_commands_cache_dir(self) -> None:
+        """Test post_install_commands with cache_dir."""
+        obj = DockerDependencyInstaller(Mock(), Mock(cache_dir=True), client=Mock())  # type: ignore
+        assert obj.post_install_commands == [
+            f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda",
+            f"chown -R {os.getuid()}:{os.getgid()} /var/task/cache_dir",
+        ]
+
+    def test_pre_install_commands(self) -> None:
+        """Test pre_install_commands."""
+        obj = DockerDependencyInstaller(Mock(), Mock(cache_dir=False), client=Mock())  # type: ignore
+        assert obj.pre_install_commands == ["chown -R 0:0 /var/task/lambda"]
+
+    def test_pre_install_commands_cache_dir(self) -> None:
+        """Test pre_install_commands with cache_dir."""
+        obj = DockerDependencyInstaller(Mock(), Mock(cache_dir=True), client=Mock())  # type: ignore
+        assert obj.pre_install_commands == [
+            "chown -R 0:0 /var/task/lambda",
+            "chown -R 0:0 /var/task/cache_dir",
         ]
 
     @pytest.mark.parametrize(

@@ -203,6 +203,8 @@ class PythonProject(Project[PythonFunctionHookArgs]):
             self.docker.install()
         else:
             self.pip.install(
+                cache_dir=self.args.cache_dir,
+                no_cache_dir=not self.args.use_cache,
                 requirements=self.requirements_txt,
                 target=self.dependency_directory,
             )

@@ -27,6 +27,7 @@ class TestPythonDockerDependencyInstaller:
         """Test bind_mounts."""
         requirements_txt = tmp_path / "requirements.txt"
         project = Mock(
+            cache_dir=False,
             dependency_directory="dependency_directory",
             project_root="project_root",
             requirements_txt=requirements_txt,
@@ -54,22 +55,24 @@ class TestPythonDockerDependencyInstaller:
 
     def test_install_commands(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test install_commands."""
-        mock_generate_command = mocker.patch(
-            f"{MODULE}.Pip.generate_command", return_value=["cmd"]
-        )
+        mock_generate_install_command = Mock(return_value=["cmd"])
         mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
         requirements_txt = tmp_path / "requirements.txt"
-        project = Mock(requirements_txt=requirements_txt)
+        project = Mock(
+            args=Mock(use_cache=True),
+            cache_dir="cache_dir",
+            pip=Mock(generate_install_command=mock_generate_install_command),
+            requirements_txt=requirements_txt,
+        )
         obj = PythonDockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
         assert obj.install_commands == [mock_join.return_value]
-        mock_generate_command.assert_called_once_with(
-            "install",
-            disable_pip_version_check=True,
-            no_input=True,
-            requirement=f"/var/task/{requirements_txt.name}",
+        mock_generate_install_command.assert_called_once_with(
+            cache_dir=obj.CACHE_DIR,
+            no_cache_dir=False,
+            requirements=f"/var/task/{requirements_txt.name}",
             target=PythonDockerDependencyInstaller.DEPENDENCY_DIR,
         )
-        mock_join.assert_called_once_with(mock_generate_command.return_value)
+        mock_join.assert_called_once_with(mock_generate_install_command.return_value)
 
     def test_python_version(self, mocker: MockerFixture) -> None:
         """Test python_version."""

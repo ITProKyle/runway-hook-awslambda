@@ -51,6 +51,8 @@ _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound="Project[AwsLambdaHookArgs]")
 class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     """Docker dependency installer."""
 
+    #: Mount path where dependency managers can cache data.
+    CACHE_DIR: ClassVar[str] = "/var/task/cache_dir"
     #: Mount path were dependencies will be installed to within the Docker container.
     #: Other files can be moved to this directory to be included in the deployment package.
     DEPENDENCY_DIR: ClassVar[str] = "/var/task/lambda"
@@ -85,7 +87,7 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     @cached_property
     def bind_mounts(self) -> List[Mount]:
         """Bind mounts that will be used by the container."""
-        return [
+        mounts = [
             Mount(
                 target=self.DEPENDENCY_DIR,
                 source=str(self.project.dependency_directory),
@@ -97,6 +99,15 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
                 type="bind",
             ),
         ]
+        if self.project.cache_dir:
+            mounts.append(
+                Mount(
+                    target=self.CACHE_DIR,
+                    source=str(self.project.cache_dir),
+                    type="bind",
+                )
+            )
+        return mounts
 
     @cached_property
     def environmet_variables(self) -> Dict[str, str]:
@@ -135,11 +146,34 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     @cached_property
     def post_install_commands(self) -> List[str]:
         """Commands to run after dependencies have been installed."""
-        return [
+        cmds = [
             shlex.join(  # TODO test on windows
                 ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.DEPENDENCY_DIR]
             )
         ]
+        if self.project.cache_dir:
+            cmds.append(
+                shlex.join(  # TODO test on windows
+                    ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.CACHE_DIR]
+                )
+            )
+        return cmds
+
+    @cached_property
+    def pre_install_commands(self) -> List[str]:
+        """Commands to run before dependencies have been installed."""
+        cmds = [
+            shlex.join(  # TODO test on windows
+                ["chown", "-R", "0:0", self.DEPENDENCY_DIR]
+            )
+        ]
+        if self.project.cache_dir:
+            cmds.append(
+                shlex.join(  # TODO test on windows
+                    ["chown", "-R", "0:0", self.CACHE_DIR]
+                )
+            )
+        return cmds
 
     @cached_property
     def runtime(self) -> Optional[str]:
@@ -229,10 +263,13 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
 
         Commands are run as they are defined in the following cached properties:
 
+        - :attr:`~awslambda.docker.DockerDependencyInstaller.pre_install_commands`
         - :attr:`~awslambda.docker.DockerDependencyInstaller.install_commands`
         - :attr:`~awslambda.docker.DockerDependencyInstaller.post_install_commands`
 
         """
+        for cmd in self.pre_install_commands:
+            self.run_command(cmd)
         for cmd in self.install_commands:
             self.run_command(cmd)
         for cmd in self.post_install_commands:

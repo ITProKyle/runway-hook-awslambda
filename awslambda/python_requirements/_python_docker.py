@@ -11,7 +11,6 @@ from runway.compat import cached_property
 
 from ..docker import DockerDependencyInstaller
 from ..utils import Version
-from .dependency_managers import Pip
 
 if TYPE_CHECKING:
     from ._python_project import PythonProject  # noqa
@@ -53,11 +52,10 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]
         """Commands to run to install dependencies."""
         return [
             shlex.join(
-                Pip.generate_command(
-                    "install",
-                    disable_pip_version_check=True,
-                    no_input=True,
-                    requirement=f"/var/task/{self.project.requirements_txt.name}",
+                self.project.pip.generate_install_command(
+                    cache_dir=self.CACHE_DIR if self.project.cache_dir else None,
+                    no_cache_dir=not self.project.args.use_cache,
+                    requirements=f"/var/task/{self.project.requirements_txt.name}",
                     target=self.DEPENDENCY_DIR,
                 )
             )

@@ -73,6 +73,9 @@ class DependencyManager(CliInterfaceMixin):
 class Project(Generic[_AwsLambdaHookArgsTypeVar]):
     """Project continaing source code for an AWS Lambda Function."""
 
+    #: Name of the default cache directory.
+    DEFAULT_CACHE_DIR_NAME: ClassVar[str] = "cache"
+
     args: _AwsLambdaHookArgsTypeVar
     ctx: CfnginContext
 
@@ -97,6 +100,26 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         )
         result.mkdir(exist_ok=True, parents=True)
         return result
+
+    @cached_property
+    def cache_dir(self) -> Optional[Path]:
+        """Directory where a dependency manager's cache data will be stored.
+
+        Returns:
+            Explicit cache directory if provided or default cache directory if
+            it is not provided. If configured to not use cache, will always be
+            ``None``.
+
+        """
+        if not self.args.use_cache:
+            return None
+        cache_dir = (
+            self.args.cache_dir
+            if self.args.cache_dir
+            else BASE_WORK_DIR / self.DEFAULT_CACHE_DIR_NAME
+        )
+        cache_dir.mkdir(exist_ok=True, parents=True)
+        return cache_dir
 
     @cached_property
     def dependency_directory(self) -> Path:
