@@ -58,6 +58,7 @@
         "astriod",
         "awslambda",
         "cfngin",
+        "cmds",
         "compat",
         "creds",
         "editorconfig",
