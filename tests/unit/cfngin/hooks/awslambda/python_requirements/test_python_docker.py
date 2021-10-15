@@ -53,7 +53,12 @@ class TestPythonDockerDependencyInstaller:
         obj = PythonDockerDependencyInstaller(ctx, Mock(), client=Mock())  # type: ignore
         assert obj.environmet_variables == expected
 
-    def test_install_commands(self, mocker: MockerFixture, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "pipenv, poetry", [(False, False), (False, True), (True, False), (True, True)]
+    )
+    def test_install_commands(
+        self, mocker: MockerFixture, pipenv: bool, poetry: bool, tmp_path: Path
+    ) -> None:
         """Test install_commands."""
         mock_generate_install_command = Mock(return_value=["cmd"])
         mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
@@ -62,12 +67,15 @@ class TestPythonDockerDependencyInstaller:
             args=Mock(use_cache=True),
             cache_dir="cache_dir",
             pip=Mock(generate_install_command=mock_generate_install_command),
+            pipenv=pipenv,
+            poetry=poetry,
             requirements_txt=requirements_txt,
         )
         obj = PythonDockerDependencyInstaller(Mock(), project, client=Mock())  # type: ignore
         assert obj.install_commands == [mock_join.return_value]
         mock_generate_install_command.assert_called_once_with(
             cache_dir=obj.CACHE_DIR,
+            no_deps=bool(pipenv or poetry),
             no_cache_dir=False,
             requirements=f"/var/task/{requirements_txt.name}",
             target=PythonDockerDependencyInstaller.DEPENDENCY_DIR,

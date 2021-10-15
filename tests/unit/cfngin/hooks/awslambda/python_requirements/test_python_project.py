@@ -100,8 +100,15 @@ class TestPythonProject:
             assert obj.docker == mock_class.return_value
             mock_class.assert_called_once_with(ctx, obj)
 
-    def test_install_dependencies(self, mocker: MockerFixture) -> None:
+    @pytest.mark.parametrize(
+        "pipenv, poetry", [(False, False), (False, True), (True, False), (True, True)]
+    )
+    def test_install_dependencies(
+        self, mocker: MockerFixture, pipenv: bool, poetry: bool
+    ) -> None:
         """Test install_dependencies."""
+        mocker.patch.object(PythonProject, "pipenv", pipenv)
+        mocker.patch.object(PythonProject, "poetry", poetry)
         dependency_directory = mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
@@ -115,6 +122,7 @@ class TestPythonProject:
         mock_pip.install.assert_called_once_with(
             cache_dir="foo",
             no_cache_dir=False,
+            no_deps=bool(pipenv or poetry),
             requirements=requirements_txt,
             target=dependency_directory,
         )
@@ -134,6 +142,8 @@ class TestPythonProject:
         self, mocker: MockerFixture
     ) -> None:
         """Test install_dependencies does not catch errors."""
+        mocker.patch.object(PythonProject, "pipenv", False)
+        mocker.patch.object(PythonProject, "poetry", False)
         dependency_directory = mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
@@ -150,6 +160,7 @@ class TestPythonProject:
         mock_pip.install.assert_called_once_with(
             cache_dir="foo",
             no_cache_dir=False,
+            no_deps=False,
             requirements=requirements_txt,
             target=dependency_directory,
         )

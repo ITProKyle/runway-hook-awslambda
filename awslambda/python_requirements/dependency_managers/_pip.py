@@ -61,6 +61,7 @@ class Pip(DependencyManager):
         *,
         cache_dir: Optional[StrPath] = None,
         no_cache_dir: bool = False,
+        no_deps: bool = False,
         requirements: StrPath,
         target: StrPath,
     ) -> List[str]:
@@ -72,6 +73,7 @@ class Pip(DependencyManager):
         Args:
             cache_dir: Store the cache data in the provided directory.
             no_cache_dir: Disable the cache.
+            no_deps: Don't install package dependencies.
             requirements: Path to a ``requirements.txt`` file.
             target: Path to a directory where dependencies will be installed.
 
@@ -81,6 +83,7 @@ class Pip(DependencyManager):
             cache_dir=str(cache_dir) if cache_dir else None,
             disable_pip_version_check=True,
             no_cache_dir=no_cache_dir,
+            no_deps=no_deps,
             no_input=True,
             requirement=str(requirements),
             target=str(target),
@@ -91,6 +94,7 @@ class Pip(DependencyManager):
         *,
         cache_dir: Optional[StrPath] = None,
         no_cache_dir: bool = False,
+        no_deps: bool = False,
         requirements: StrPath,
         target: StrPath,
     ) -> Path:
@@ -99,6 +103,7 @@ class Pip(DependencyManager):
         Args:
             cache_dir: Store the cache data in the provided directory.
             no_cache_dir: Disable the cache.
+            no_deps: Don't install package dependencies.
             requirements: Path to a ``requirements.txt`` file.
             target: Path to a directory where dependencies will be installed.
 
@@ -114,6 +119,7 @@ class Pip(DependencyManager):
                 self.generate_install_command(
                     cache_dir=cache_dir,
                     no_cache_dir=no_cache_dir,
+                    no_deps=no_deps,
                     requirements=requirements,
                     target=target,
                 ),

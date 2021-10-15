@@ -15,8 +15,6 @@ from ..utils import Version
 if TYPE_CHECKING:
     from ._python_project import PythonProject  # noqa
 
-# TODO add support for cache directory
-
 
 class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]):
     """Docker dependency installer for Python."""
@@ -55,6 +53,7 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]
                 self.project.pip.generate_install_command(
                     cache_dir=self.CACHE_DIR if self.project.cache_dir else None,
                     no_cache_dir=not self.project.args.use_cache,
+                    no_deps=bool(self.project.poetry or self.project.pipenv),
                     requirements=f"/var/task/{self.project.requirements_txt.name}",
                     target=self.DEPENDENCY_DIR,
                 )

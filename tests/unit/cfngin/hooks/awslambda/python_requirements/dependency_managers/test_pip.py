@@ -51,8 +51,8 @@ class TestPip:
         "call_args, expected",
         [
             (
-                {"requirements": "./foo.txt", "target": "./target"},
-                {"requirement": "./foo.txt", "target": "./target"},
+                {"no_deps": True, "requirements": "./foo.txt", "target": "./target"},
+                {"no_deps": True, "requirement": "./foo.txt", "target": "./target"},
             ),
             (
                 {
@@ -77,6 +77,7 @@ class TestPip:
         expected.setdefault("cache_dir", None)
         expected.setdefault("disable_pip_version_check", True)
         expected.setdefault("no_cache_dir", False)
+        expected.setdefault("no_deps", False)
         expected.setdefault("no_input", True)
         mock_generate_command = mocker.patch.object(
             Pip, "generate_command", return_value="generate_command"
@@ -111,6 +112,7 @@ class TestPip:
         mock_generate_install_command.assert_called_once_with(
             cache_dir=None,
             no_cache_dir=False,
+            no_deps=False,
             requirements=requirements_txt,
             target=target,
         )
