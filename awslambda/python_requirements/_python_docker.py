@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import re
 import shlex
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from docker.types.services import Mount
 from runway.compat import cached_property
@@ -13,11 +13,33 @@ from ..docker import DockerDependencyInstaller
 from ..utils import Version
 
 if TYPE_CHECKING:
-    from ._python_project import PythonProject  # noqa
+    from docker.client import DockerClient
+    from runway.context import CfnginContext, RunwayContext
+
+    from ._python_project import PythonProject
 
 
-class PythonDockerDependencyInstaller(DockerDependencyInstaller["PythonProject"]):
+class PythonDockerDependencyInstaller(DockerDependencyInstaller):
     """Docker dependency installer for Python."""
+
+    project: PythonProject
+
+    def __init__(
+        self,
+        context: Union[CfnginContext, RunwayContext],
+        project: PythonProject,
+        *,
+        client: Optional[DockerClient] = None,
+    ) -> None:
+        """Instantiate class.
+
+        Args:
+            context: CFNgin or Runway context object.
+            project: awslambda project.
+            client: Pre-configured :class:`docker.client.DockerClient`.
+
+        """
+        super().__init__(context, project, client=client)
 
     @cached_property
     def bind_mounts(self) -> List[Mount]:

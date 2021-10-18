@@ -4,18 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import shlex
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Iterator, List, Optional, Union
 
 from docker import DockerClient
 from docker.errors import ImageNotFound
@@ -39,8 +28,6 @@ LOGGER = logging.getLogger(f"runway.{__name__}")
 DEFAULT_IMAGE_NAME = "runway.cfngin.hooks.awslambda"
 DEFAULT_IMAGE_TAG = "latest"
 
-_ProjectTypeVar = TypeVar("_ProjectTypeVar", bound="Project[AwsLambdaHookArgs]")
-
 # TODO set minimum version of docker SDK to solidify types
 #    >= 3.0.0 for docker.images.build return type
 # TODO determine image from runtime
@@ -48,7 +35,7 @@ _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound="Project[AwsLambdaHookArgs]")
 # TODO determine if we need to pin `packaging` https://github.com/pypa/packaging
 
 
-class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
+class DockerDependencyInstaller:
     """Docker dependency installer."""
 
     #: Mount path where dependency managers can cache data.
@@ -66,7 +53,7 @@ class DockerDependencyInstaller(Generic[_ProjectTypeVar]):
     def __init__(
         self,
         context: Union[CfnginContext, RunwayContext],
-        project: _ProjectTypeVar,
+        project: Project[AwsLambdaHookArgs],
         *,
         client: Optional[DockerClient] = None,
     ) -> None:
