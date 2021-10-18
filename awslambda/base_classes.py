@@ -73,8 +73,8 @@ class DependencyManager(CliInterfaceMixin):
 class Project(Generic[_AwsLambdaHookArgsTypeVar]):
     """Project continaing source code for an AWS Lambda Function."""
 
-    #: Name of the default cache directory.
     DEFAULT_CACHE_DIR_NAME: ClassVar[str] = "cache"
+    """Name of the default cache directory."""
 
     args: _AwsLambdaHookArgsTypeVar
     ctx: CfnginContext

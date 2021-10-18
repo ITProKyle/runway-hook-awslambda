@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import shutil
-from typing import TYPE_CHECKING, Any, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Set, Tuple, Union
 
 from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
@@ -61,6 +61,9 @@ class PythonRequirementsNotFoundError(CfnginError):
 
 class PythonProject(Project[PythonFunctionHookArgs]):
     """Python project."""
+
+    DEFAULT_CACHE_DIR_NAME: ClassVar[str] = "pip_cache"
+    """Name of the default cache directory."""
 
     @cached_property
     def docker(self) -> Optional[PythonDockerDependencyInstaller]:

@@ -21,15 +21,49 @@ These files are required to defined the dependencies that will be included in th
 Args
 ****
 
-Arguments that can be passed to hook as the :attr:`~cfngin.hook.args` field.
+Arguments that can be passed to hook in the :attr:`~cfngin.hook.args` field.
 
-.. autoclass:: awslambda.models.args.PythonFunctionHookArgs
-  :exclude-members: Config
-  :member-order: alphabetical
-  :no-inherited-members:
-  :no-show-inheritance:
-  :no-special-members:
+Documentation for each field is automatically generated from class attributes in the source code.
+When specifying the field, exclude the class name.
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.bucket_name
   :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.cache_dir
+  :noindex:
+
+  If not provided, the cache directory is ``.runway/awslambda/pip_cache`` within the current working directory.
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.docker
+  :noindex:
+
+  .. autoattribute:: awslambda.models.args.DockerOptions.disabled
+    :noindex:
+
+  .. autoattribute:: awslambda.models.args.DockerOptions.file
+    :noindex:
+
+  .. autoattribute:: awslambda.models.args.DockerOptions.image
+    :noindex:
+
+  .. autoattribute:: awslambda.models.args.DockerOptions.pull
+    :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.extend_gitignore
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.object_prefix
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.runtime
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.source_code
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_cache
+  :noindex:
+
 
 
 ************
