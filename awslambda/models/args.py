@@ -15,7 +15,7 @@ class DockerOptions(BaseModel):
     """Docker options.
 
     Attributes:
-        disable: Explicitly disable the use of docker.
+        disabled: Explicitly disable the use of docker.
         file: Dockerfile to use to build an image for use in this process.
         image: Docker image to use. If the image does not exist locally, it
             will be pulled.
@@ -25,7 +25,7 @@ class DockerOptions(BaseModel):
 
     """
 
-    disable: bool = False
+    disabled: bool = False
     file: Optional[FilePath] = None  # TODO resolve path
     image: Optional[str] = None
     pull: bool = True

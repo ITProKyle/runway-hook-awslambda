@@ -158,7 +158,7 @@ class TestDockerDependencyInstaller:
     def test_from_project(self, mocker: MockerFixture) -> None:
         """Test from_project."""
         project = Mock(
-            args=Mock(docker=DockerOptions(disable=False)),
+            args=Mock(docker=DockerOptions(disabled=False)),
             ctx=Mock(env=Mock(vars={"foo": "bar"})),
         )
         client = Mock(ping=Mock(return_value=True))
@@ -174,7 +174,7 @@ class TestDockerDependencyInstaller:
     def test_from_project_disabled(self) -> None:
         """Test from_project disabled."""
         assert not DockerDependencyInstaller.from_project(
-            Mock(args=Mock(docker=DockerOptions(disable=True)))
+            Mock(args=Mock(docker=DockerOptions(disabled=True)))
         )
 
     def test_from_project_handle_connection_refused(
@@ -190,13 +190,13 @@ class TestDockerDependencyInstaller:
         )
         with pytest.raises(DockerConnectionRefused):
             DockerDependencyInstaller.from_project(
-                Mock(args=Mock(docker=DockerOptions(disable=False)))
+                Mock(args=Mock(docker=DockerOptions(disabled=False)))
             )
 
     def test_from_project_ping_false(self, mocker: MockerFixture) -> None:
         """Test from_project handle DockerException connection refused."""
         project = Mock(
-            args=Mock(docker=DockerOptions(disable=False)),
+            args=Mock(docker=DockerOptions(disabled=False)),
             ctx=Mock(env=Mock(vars={"foo": "bar"})),
         )
         client = Mock(ping=Mock(return_value=False))
@@ -214,7 +214,7 @@ class TestDockerDependencyInstaller:
         )
         with pytest.raises(DockerException):
             DockerDependencyInstaller.from_project(
-                Mock(args=Mock(docker=DockerOptions(disable=False)))
+                Mock(args=Mock(docker=DockerOptions(disabled=False)))
             )
 
     @pytest.mark.parametrize(

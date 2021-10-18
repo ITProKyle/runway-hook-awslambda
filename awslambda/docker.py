@@ -360,7 +360,7 @@ class DockerDependencyInstaller:
             DockerConnectionRefused: Docker is not install or is unreachable.
 
         """
-        if project.args.docker.disable:
+        if project.args.docker.disabled:
             return None
         try:
             client = DockerClient.from_env(environment=project.ctx.env.vars)
