@@ -65,10 +65,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
     @cached_property
     def docker(self) -> Optional[PythonDockerDependencyInstaller]:
         """Docker interface that can be used to build the project."""
-        if self.args.docker.disable:
-            return None
-        # TODO ensure docker is available
-        return PythonDockerDependencyInstaller(self.ctx, self)
+        return PythonDockerDependencyInstaller.from_project(self)
 
     @cached_property
     def metadata_files(self) -> Tuple[Path, ...]:

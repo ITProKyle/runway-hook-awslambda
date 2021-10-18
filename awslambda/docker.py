@@ -4,16 +4,28 @@ from __future__ import annotations
 import logging
 import os
 import shlex
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, Iterator, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from docker import DockerClient
-from docker.errors import ImageNotFound
+from docker.errors import DockerException, ImageNotFound
 from docker.models.images import Image
 from docker.types import Mount
 from runway._logging import PrefixAdaptor
 from runway.compat import cached_property
 
 from .constants import AWS_SAM_BUILD_IMAGE_PREFIX
+from .exceptions import DockerConnectionRefused
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,6 +47,9 @@ DEFAULT_IMAGE_TAG = "latest"
 # TODO determine if we need to pin `packaging` https://github.com/pypa/packaging
 
 
+_T = TypeVar("_T")
+
+
 class DockerDependencyInstaller:
     """Docker dependency installer."""
 
@@ -52,19 +67,26 @@ class DockerDependencyInstaller:
 
     def __init__(
         self,
-        context: Union[CfnginContext, RunwayContext],
         project: Project[AwsLambdaHookArgs],
         *,
         client: Optional[DockerClient] = None,
+        context: Optional[Union[CfnginContext, RunwayContext]] = None,
     ) -> None:
         """Instantiate class.
 
+        This is a low-level method that requires the user to implement error
+        handling. It is recommended to use
+        :meth:`~awslambda.docker.DockerDependencyInstaller.from_project`
+        instead of instantiating this class directly.
+
         Args:
-            context: CFNgin or Runway context object.
             project: awslambda project.
             client: Pre-configured :class:`docker.client.DockerClient`.
+            context: CFNgin or Runway context object.
 
         """
+        context = context or project.ctx
+
         self._docker_logger = PrefixAdaptor("docker", LOGGER, "[{prefix}] {msg}")
         self.client = client or DockerClient.from_env(environment=context.env.vars)
         self.ctx = context
@@ -318,3 +340,35 @@ class DockerDependencyInstaller:
                 raise RuntimeError(  # TODO make custom error
                     f"Docker container exited with non-zero exit code: {exit_code}",
                 )
+
+    @classmethod
+    def from_project(
+        cls: Type[_T], project: Project[AwsLambdaHookArgs]
+    ) -> Optional[_T]:
+        """Instantiate class from a project.
+
+        High-level method that wraps instantiation in error handling.
+
+        Args:
+            project: Project being processed.
+
+        Returns:
+            Object to handle dependency installation with Docker if Docker is
+            available and not disabled.
+
+        Raises:
+            DockerConnectionRefused: Docker is not install or is unreachable.
+
+        """
+        if project.args.docker.disable:
+            return None
+        try:
+            client = DockerClient.from_env(environment=project.ctx.env.vars)
+            if client.ping():
+                return cls(project, client=client)
+        except DockerException as exc:
+            if "connection refused" in str(exc).lower():
+                raise DockerConnectionRefused from exc  # raise informative error
+            raise
+        # ping failed but method did not return false for some reason
+        raise DockerConnectionRefused

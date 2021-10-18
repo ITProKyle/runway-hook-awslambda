@@ -26,20 +26,20 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller):
 
     def __init__(
         self,
-        context: Union[CfnginContext, RunwayContext],
         project: PythonProject,
         *,
         client: Optional[DockerClient] = None,
+        context: Optional[Union[CfnginContext, RunwayContext]] = None,
     ) -> None:
         """Instantiate class.
 
         Args:
-            context: CFNgin or Runway context object.
             project: awslambda project.
             client: Pre-configured :class:`docker.client.DockerClient`.
+            context: CFNgin or Runway context object.
 
         """
-        super().__init__(context, project, client=client)
+        super().__init__(project, client=client, context=context)
 
     @cached_property
     def bind_mounts(self) -> List[Mount]:

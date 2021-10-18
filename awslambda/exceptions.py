@@ -4,12 +4,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from runway.cfngin.exceptions import CfnginError
+from runway.exceptions import RunwayError
 
 if TYPE_CHECKING:
     from runway.core.providers.aws.s3 import Bucket
 
 
-class BucketAccessDenied(CfnginError):
+class BucketAccessDenied(CfnginError):  # TODO should this be a RunwayError?
     """Access denied to S3 Bucket."""
 
     bucket_name: str
@@ -26,7 +27,7 @@ class BucketAccessDenied(CfnginError):
         super().__init__()
 
 
-class BucketNotFound(CfnginError):
+class BucketNotFound(CfnginError):  # TODO should this be a RunwayError?
     """S3 Bucket not found."""
 
     bucket_name: str
@@ -43,7 +44,28 @@ class BucketNotFound(CfnginError):
         super().__init__()
 
 
-class RequiredTagNotFound(CfnginError):
+class DockerConnectionRefused(RunwayError):  # TODO move to runway.exceptions
+    """Docker connection refused.
+
+    This can be caused by a number of reasons:
+
+    - Docker is not installed.
+    - Docker service is not running.
+    - The current user does not have adequate permissions (e.g. not a member of
+      the ``docker`` group).
+
+    """
+
+    def __init__(self) -> None:
+        """Instantiate class."""
+        self.message = (
+            "Docker connection refused; install Docker, ensure it is running, "
+            "and ensure the current user has adequate permissions"
+        )
+        super().__init__()
+
+
+class RequiredTagNotFound(CfnginError):  # TODO should this be a RunwayError?
     """Required tag not found on resource."""
 
     resource: str

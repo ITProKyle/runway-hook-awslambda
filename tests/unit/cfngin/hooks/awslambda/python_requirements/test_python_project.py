@@ -84,21 +84,15 @@ class TestPythonProject:
             tmp_requirements_txt.unlink.assert_not_called()
         mock_rmtree.assert_called_once_with(dependency_directory, ignore_errors=True)
 
-    @pytest.mark.parametrize("disabled", [False, True])
-    def test_docker(self, disabled: bool, mocker: MockerFixture) -> None:
+    def test_docker(self, mocker: MockerFixture) -> None:
         """Test docker."""
-        ctx = Mock()
-        mock_class = mocker.patch(
-            f"{MODULE}.PythonDockerDependencyInstaller", return_value="success"
+        from_project = mocker.patch(
+            f"{MODULE}.PythonDockerDependencyInstaller.from_project",
+            return_value="success",
         )
-        obj = PythonProject(Mock(docker=Mock(disable=disabled)), ctx)
-
-        if disabled:
-            assert not obj.docker
-            mock_class.assert_not_called()
-        else:
-            assert obj.docker == mock_class.return_value
-            mock_class.assert_called_once_with(ctx, obj)
+        obj = PythonProject(Mock(), Mock())
+        assert obj.docker == from_project.return_value
+        from_project.assert_called_once_with(obj)
 
     @pytest.mark.parametrize(
         "pipenv, poetry", [(False, False), (False, True), (True, False), (True, True)]
