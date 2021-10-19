@@ -339,17 +339,33 @@ class TestDockerDependencyInstaller:
 
     def test_post_install_commands(self) -> None:
         """Test post_install_commands."""
-        obj = DockerDependencyInstaller(Mock(cache_dir=False), client=Mock())
+        obj = DockerDependencyInstaller(
+            Mock(args=Mock(docker=Mock(extra_files=[])), cache_dir=False), client=Mock()
+        )
         assert obj.post_install_commands == [
             f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda"
         ]
 
     def test_post_install_commands_cache_dir(self) -> None:
         """Test post_install_commands with cache_dir."""
-        obj = DockerDependencyInstaller(Mock(cache_dir=True), client=Mock())
+        obj = DockerDependencyInstaller(
+            Mock(args=Mock(docker=Mock(extra_files=[]))), client=Mock()
+        )
         assert obj.post_install_commands == [
             f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda",
             f"chown -R {os.getuid()}:{os.getgid()} /var/task/cache_dir",
+        ]
+
+    def test_post_install_commands_extra_files(self) -> None:
+        """Test post_install_commands with extra_files."""
+        obj = DockerDependencyInstaller(
+            Mock(args=Mock(docker=Mock(extra_files=["foo", "bar"])), cache_dir=False),
+            client=Mock(),
+        )
+        assert obj.post_install_commands == [
+            'cp -v "foo" "/var/task/lambda"',
+            'cp -v "bar" "/var/task/lambda"',
+            f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda",
         ]
 
     def test_pre_install_commands(self) -> None:

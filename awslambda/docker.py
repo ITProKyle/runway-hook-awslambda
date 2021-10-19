@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import os
-import shlex
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,6 +14,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 from docker import DockerClient
@@ -30,12 +30,13 @@ from .exceptions import DockerConnectionRefused
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from runway._logging import RunwayLogger
     from runway.context import CfnginContext, RunwayContext
 
     from awslambda.base_classes import Project
     from awslambda.models.args import AwsLambdaHookArgs, DockerOptions
 
-LOGGER = logging.getLogger(f"runway.{__name__}")
+LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 
 DEFAULT_IMAGE_NAME = "runway.cfngin.hooks.awslambda"
 DEFAULT_IMAGE_TAG = "latest"
@@ -155,33 +156,26 @@ class DockerDependencyInstaller:
     @cached_property
     def post_install_commands(self) -> List[str]:
         """Commands to run after dependencies have been installed."""
+        gid, uid = os.getgid(), os.getuid()  # TODO test on windows
         cmds = [
-            shlex.join(  # TODO test on windows
-                ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.DEPENDENCY_DIR]
-            )
+            *[
+                f'cp -v "{extra_file}" "{self.DEPENDENCY_DIR}"'
+                for extra_file in self.options.extra_files
+            ],
+            f"chown -R {uid}:{gid} {self.DEPENDENCY_DIR}",
         ]
         if self.project.cache_dir:
-            cmds.append(
-                shlex.join(  # TODO test on windows
-                    ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.CACHE_DIR]
-                )
-            )
+            cmds.append(f"chown -R {uid}:{gid} {self.CACHE_DIR}")
         return cmds
 
     @cached_property
     def pre_install_commands(self) -> List[str]:
         """Commands to run before dependencies have been installed."""
         cmds = [
-            shlex.join(  # TODO test on windows
-                ["chown", "-R", "0:0", self.DEPENDENCY_DIR]
-            )
+            f"chown -R 0:0 {self.DEPENDENCY_DIR}",
         ]
         if self.project.cache_dir:
-            cmds.append(
-                shlex.join(  # TODO test on windows
-                    ["chown", "-R", "0:0", self.CACHE_DIR]
-                )
-            )
+            cmds.append(f"chown -R 0:0 {self.CACHE_DIR}")
         return cmds
 
     @cached_property
@@ -319,7 +313,7 @@ class DockerDependencyInstaller:
             List of log messages.
 
         """
-        LOGGER.debug("running command with docker: %s", command)
+        LOGGER.verbose("running command with docker: %s", command)
         container = self.client.containers.create(
             command=command,
             detach=True,

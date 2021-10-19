@@ -62,6 +62,7 @@
         "compat",
         "creds",
         "deps",
+        "devel",
         "editorconfig",
         "filterwarnings",
         "forcerm",
@@ -74,7 +75,9 @@
         "IRWXO",
         "IRWXU",
         "IXUSR",
+        "libxmlsec",
         "loadfile",
+        "ltdl",
         "minversion",
         "numprocesses",
         "pathlib",
@@ -89,6 +92,7 @@
         "testpaths",
         "tomli",
         "turediv",
-        "xdist"
+        "xdist",
+        "xmlsec"
     ]
 }

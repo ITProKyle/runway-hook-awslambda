@@ -28,6 +28,26 @@ class DockerOptions(BaseModel):
 
     """
 
+    extra_files: List[str] = []
+    """List of absolute file paths within the Docker container to copy into the deployment package.
+
+    Some Python packages require extra OS libraries (``*.so``) files at runtime.
+    These files need to be included in the deployment package for the Lambda Function to run.
+    List the files here and the hook will handle copying them into the deployment package.
+
+    If the file does not exist, it will result in an error.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            extra_files:
+              - /usr/lib64/mysql57/libmysqlclient.so.1020
+              - /usr/lib64/libxmlsec1-openssl.so
+
+    """
+
     file: Optional[FilePath] = None  # TODO resolve path
     """Dockerfile to use to build an image for use in this process.
 
