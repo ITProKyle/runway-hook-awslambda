@@ -177,16 +177,22 @@ class TestDockerDependencyInstaller:
             Mock(args=Mock(docker=DockerOptions(disabled=True)))
         )
 
+    @pytest.mark.parametrize(
+        "error_msg",
+        [
+            "Error while fetching server API version: "  # error from macOS
+            "('Connection aborted.', ConnectionRefusedError(61, 'Connection refused'))",
+            "Error while fetching server API version: "  # error from Windows
+            "(2, 'CreateFile', 'The system cannot find the file specified.')",
+        ],
+    )
     def test_from_project_handle_connection_refused(
-        self, mocker: MockerFixture
+        self, error_msg: str, mocker: MockerFixture
     ) -> None:
         """Test from_project handle DockerException connection refused."""
         mocker.patch(
             f"{MODULE}.DockerClient.from_env",
-            side_effect=DockerException(
-                "Error while fetching server API version: "
-                "('Connection aborted.', ConnectionRefusedError(61, 'Connection refused'))"
-            ),
+            side_effect=DockerException(error_msg),
         )
         with pytest.raises(DockerConnectionRefused):
             DockerDependencyInstaller.from_project(

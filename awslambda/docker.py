@@ -361,7 +361,9 @@ class DockerDependencyInstaller:
             if client.ping():
                 return cls(project, client=client)
         except DockerException as exc:
-            if "connection refused" in str(exc).lower():
+            # This might be too broad but, it is the only repeated substring
+            # between operating systems in similar states.
+            if "Error while fetching server API version" in str(exc):
                 raise DockerConnectionRefused from exc  # raise informative error
             raise
         # ping failed but method did not return false for some reason
