@@ -9,10 +9,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Final,
+    Iterable,
     List,
     Literal,
     Optional,
-    Sequence,
     Tuple,
     Union,
     cast,
@@ -133,7 +133,7 @@ class Pip(DependencyManager):
     def generate_command(
         cls,
         command: Union[List[str], str],
-        **kwargs: Optional[Union[bool, Sequence[str], str]],
+        **kwargs: Optional[Union[bool, Iterable[str], str]],
     ) -> List[str]:
         """Generate command to be executed and log it.
 

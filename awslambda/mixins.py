@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import platform
 import shlex
 import shutil
 import subprocess
@@ -9,9 +10,9 @@ from typing import (
     TYPE_CHECKING,
     ClassVar,
     Dict,
+    Iterable,
     List,
     Optional,
-    Sequence,
     Union,
     cast,
     overload,
@@ -52,7 +53,7 @@ class CliInterfaceMixin:
     def generate_command(
         cls,
         command: Union[List[str], str],
-        **kwargs: Optional[Union[bool, Sequence[str], str]],
+        **kwargs: Optional[Union[bool, Iterable[str], str]],
     ) -> List[str]:
         """Generate command to be executed and log it.
 
@@ -66,12 +67,12 @@ class CliInterfaceMixin:
         """
         cmd = [cls.EXECUTABLE, *(command if isinstance(command, list) else [command])]
         cmd.extend(cls._generate_command_handle_kwargs(**kwargs))
-        LOGGER.debug("generated command: %s", shlex.join(cmd))
+        LOGGER.debug("generated command: %s", cls.list2cmdline(cmd))
         return cmd
 
     @classmethod
     def _generate_command_handle_kwargs(
-        cls, **kwargs: Optional[Union[bool, Sequence[str], str]]
+        cls, **kwargs: Optional[Union[bool, Iterable[str], str]]
     ) -> List[str]:
         """Handle kwargs passed to generate_command."""
         result: List[str] = []
@@ -79,16 +80,27 @@ class CliInterfaceMixin:
             if isinstance(v, str):
                 result.extend([cls.convert_to_cli_arg(k), v])
             elif isinstance(v, (list, set, tuple)):
-                for i in cast(Sequence[str], v):
+                for i in cast(Iterable[str], v):
                     result.extend([cls.convert_to_cli_arg(k), i])
             elif isinstance(v, bool) and v:
                 result.append(cls.convert_to_cli_arg(k))
         return result
 
+    @staticmethod
+    def list2cmdline(split_command: Iterable[str]) -> str:
+        """Combine a list of strings into a string that can be run as a command.
+
+        Handles multi-platform differences.
+
+        """
+        if platform.system() == "Windows":
+            return subprocess.list2cmdline(split_command)
+        return shlex.join(split_command)
+
     @overload
     def _run_command(
         self,
-        command: Union[Sequence[str], str],
+        command: Union[Iterable[str], str],
         *,
         env: Optional[Dict[str, str]] = ...,
         suppress_output: Literal[True] = ...,
@@ -98,7 +110,7 @@ class CliInterfaceMixin:
     @overload
     def _run_command(
         self,
-        command: Union[Sequence[str], str],
+        command: Union[Iterable[str], str],
         *,
         env: Optional[Dict[str, str]] = ...,
         suppress_output: Literal[False] = ...,
@@ -107,7 +119,7 @@ class CliInterfaceMixin:
 
     def _run_command(
         self,
-        command: Union[Sequence[str], str],
+        command: Union[Iterable[str], str],
         *,
         env: Optional[Dict[str, str]] = None,
         suppress_output: bool = True,
@@ -122,7 +134,7 @@ class CliInterfaceMixin:
                 returned as a string instead of being being written directly.
 
         """
-        cmd_str = command if isinstance(command, str) else shlex.join(command)
+        cmd_str = command if isinstance(command, str) else self.list2cmdline(command)
         LOGGER.verbose("running command: %s", cmd_str)
         if suppress_output:
             return subprocess.check_output(

@@ -60,14 +60,18 @@ class TestCliInterfaceMixin:
     ) -> None:
         """Test _run_command."""
         env = {"foo": "bar"}
+        mock_list2cmdline = mocker.patch.object(
+            CliInterface, "list2cmdline", return_value="success"
+        )
         mock_subprocess = mocker.patch(
             f"{MODULE}.subprocess.check_call", return_value=0
         )
         assert not CliInterface(Mock(env=Mock(vars=env)), tmp_path)._run_command(
             ["foo", "bar"], suppress_output=False
         )
+        mock_list2cmdline.assert_called_once_with(["foo", "bar"])
         mock_subprocess.assert_called_once_with(
-            "foo bar",
+            mock_list2cmdline.return_value,
             cwd=tmp_path,
             env=env,
             shell=True,
@@ -122,3 +126,41 @@ class TestCliInterfaceMixin:
             "command",
             *expected,
         ]
+
+    def test_list2cmdline_darwin(
+        self,
+        mocker: MockerFixture,
+        platform_darwin: None,  # pylint: disable=unused-argument
+    ) -> None:
+        """Test list2cmdline on Darwin/macOS systems."""
+        mock_list2cmdline = mocker.patch(f"{MODULE}.subprocess.list2cmdline")
+        mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
+        assert CliInterface.list2cmdline("foo") == mock_join.return_value
+        mock_list2cmdline.assert_not_called()
+        mock_join.assert_called_once_with("foo")
+
+    def test_list2cmdline_linus(
+        self,
+        mocker: MockerFixture,
+        platform_linux: None,  # pylint: disable=unused-argument
+    ) -> None:
+        """Test list2cmdline on Linux systems."""
+        mock_list2cmdline = mocker.patch(f"{MODULE}.subprocess.list2cmdline")
+        mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
+        assert CliInterface.list2cmdline("foo") == mock_join.return_value
+        mock_list2cmdline.assert_not_called()
+        mock_join.assert_called_once_with("foo")
+
+    def test_list2cmdline_windows(
+        self,
+        mocker: MockerFixture,
+        platform_windows: None,  # pylint: disable=unused-argument
+    ) -> None:
+        """Test list2cmdline on Windows systems."""
+        mock_list2cmdline = mocker.patch(
+            f"{MODULE}.subprocess.list2cmdline", return_value="success"
+        )
+        mock_join = mocker.patch(f"{MODULE}.shlex.join")
+        assert CliInterface.list2cmdline("foo") == mock_list2cmdline.return_value
+        mock_list2cmdline.assert_called_once_with("foo")
+        mock_join.assert_not_called()
