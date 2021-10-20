@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import TYPE_CHECKING, Optional
 
 import pytest
@@ -343,27 +342,48 @@ class TestDockerDependencyInstaller:
         )
         docker_logger.log.assert_has_calls([call(level, m) for m in msgs[:-1]])  # type: ignore
 
-    def test_post_install_commands(self) -> None:
+    def test_post_install_commands(
+        self,
+        mocker: MockerFixture,
+        platform_linux: None,  # pylint: disable=unused-argument
+    ) -> None:
         """Test post_install_commands."""
+        # these methods don't exist on windows so they need to be mocked
+        getgid = mocker.patch(f"{MODULE}.os.getgid", create=True, return_value=3)
+        getuid = mocker.patch(f"{MODULE}.os.getuid", create=True, return_value=4)
         obj = DockerDependencyInstaller(
             Mock(args=Mock(docker=Mock(extra_files=[])), cache_dir=False), client=Mock()
         )
         assert obj.post_install_commands == [
-            f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda"
+            f"chown -R {getuid.return_value}:{getgid.return_value} /var/task/lambda"
         ]
 
-    def test_post_install_commands_cache_dir(self) -> None:
+    def test_post_install_commands_cache_dir(
+        self,
+        mocker: MockerFixture,
+        platform_linux: None,  # pylint: disable=unused-argument
+    ) -> None:
         """Test post_install_commands with cache_dir."""
+        # these methods don't exist on windows so they need to be mocked
+        getgid = mocker.patch(f"{MODULE}.os.getgid", create=True, return_value=3)
+        getuid = mocker.patch(f"{MODULE}.os.getuid", create=True, return_value=4)
         obj = DockerDependencyInstaller(
             Mock(args=Mock(docker=Mock(extra_files=[]))), client=Mock()
         )
         assert obj.post_install_commands == [
-            f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda",
-            f"chown -R {os.getuid()}:{os.getgid()} /var/task/cache_dir",
+            f"chown -R {getuid.return_value}:{getgid.return_value} /var/task/lambda",
+            f"chown -R {getuid.return_value}:{getgid.return_value} /var/task/cache_dir",
         ]
 
-    def test_post_install_commands_extra_files(self) -> None:
+    def test_post_install_commands_extra_files(
+        self,
+        mocker: MockerFixture,
+        platform_linux: None,  # pylint: disable=unused-argument
+    ) -> None:
         """Test post_install_commands with extra_files."""
+        # these methods don't exist on windows so they need to be mocked
+        getgid = mocker.patch(f"{MODULE}.os.getgid", create=True, return_value=3)
+        getuid = mocker.patch(f"{MODULE}.os.getuid", create=True, return_value=4)
         obj = DockerDependencyInstaller(
             Mock(args=Mock(docker=Mock(extra_files=["foo", "bar"])), cache_dir=False),
             client=Mock(),
@@ -371,8 +391,17 @@ class TestDockerDependencyInstaller:
         assert obj.post_install_commands == [
             'cp -v "foo" "/var/task/lambda"',
             'cp -v "bar" "/var/task/lambda"',
-            f"chown -R {os.getuid()}:{os.getgid()} /var/task/lambda",
+            f"chown -R {getuid.return_value}:{getgid.return_value} /var/task/lambda",
         ]
+
+    def test_post_install_commands_windows(
+        self, platform_windows: None  # pylint: disable=unused-argument
+    ) -> None:
+        """Test post_install_commands Windows."""
+        obj = DockerDependencyInstaller(
+            Mock(args=Mock(docker=Mock(extra_files=[])), cache_dir=False), client=Mock()
+        )
+        assert obj.post_install_commands == []
 
     def test_pre_install_commands(self) -> None:
         """Test pre_install_commands."""

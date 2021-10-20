@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import platform
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -156,16 +157,20 @@ class DockerDependencyInstaller:
     @cached_property
     def post_install_commands(self) -> List[str]:
         """Commands to run after dependencies have been installed."""
-        gid, uid = os.getgid(), os.getuid()  # TODO test on windows
         cmds = [
             *[
                 f'cp -v "{extra_file}" "{self.DEPENDENCY_DIR}"'
                 for extra_file in self.options.extra_files
             ],
-            f"chown -R {uid}:{gid} {self.DEPENDENCY_DIR}",
         ]
-        if self.project.cache_dir:
-            cmds.append(f"chown -R {uid}:{gid} {self.CACHE_DIR}")
+        if platform.system() != "Windows":
+            # methods only exist on POSIX systems
+            gid, uid = os.getgid(), os.getuid()  # pylint: disable=no-member
+            cmds.append(
+                f"chown -R {uid}:{gid} {self.DEPENDENCY_DIR}",
+            )
+            if self.project.cache_dir:
+                cmds.append(f"chown -R {uid}:{gid} {self.CACHE_DIR}")
         return cmds
 
     @cached_property
