@@ -26,7 +26,7 @@ from runway._logging import PrefixAdaptor
 from runway.compat import cached_property
 
 from .constants import AWS_SAM_BUILD_IMAGE_PREFIX
-from .exceptions import DockerConnectionRefused
+from .exceptions import DockerConnectionRefusedError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,8 +44,6 @@ DEFAULT_IMAGE_TAG = "latest"
 
 # TODO set minimum version of docker SDK to solidify types
 #    >= 3.0.0 for docker.images.build return type
-# TODO determine image from runtime
-#     https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-image-repositories.html
 # TODO determine if we need to pin `packaging` https://github.com/pypa/packaging
 
 
@@ -369,7 +367,7 @@ class DockerDependencyInstaller:
             # This might be too broad but, it is the only repeated substring
             # between operating systems in similar states.
             if "Error while fetching server API version" in str(exc):
-                raise DockerConnectionRefused from exc  # raise informative error
+                raise DockerConnectionRefusedError from exc
             raise
         # ping failed but method did not return false for some reason
-        raise DockerConnectionRefused
+        raise DockerConnectionRefusedError

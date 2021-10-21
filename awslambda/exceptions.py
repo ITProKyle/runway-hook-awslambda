@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from runway.core.providers.aws.s3 import Bucket
 
 
-class BucketAccessDenied(CfnginError):  # TODO should this be a RunwayError?
+class BucketAccessDeniedError(CfnginError):  # TODO should this be a RunwayError?
     """Access denied to S3 Bucket."""
 
     bucket_name: str
@@ -27,7 +27,7 @@ class BucketAccessDenied(CfnginError):  # TODO should this be a RunwayError?
         super().__init__()
 
 
-class BucketNotFound(CfnginError):  # TODO should this be a RunwayError?
+class BucketNotFoundError(CfnginError):  # TODO should this be a RunwayError?
     """S3 Bucket not found."""
 
     bucket_name: str
@@ -44,7 +44,7 @@ class BucketNotFound(CfnginError):  # TODO should this be a RunwayError?
         super().__init__()
 
 
-class DockerConnectionRefused(RunwayError):  # TODO move to runway.exceptions
+class DockerConnectionRefusedError(RunwayError):  # TODO move to runway.exceptions
     """Docker connection refused.
 
     This can be caused by a number of reasons:
@@ -65,7 +65,7 @@ class DockerConnectionRefused(RunwayError):  # TODO move to runway.exceptions
         super().__init__()
 
 
-class RequiredTagNotFound(CfnginError):  # TODO should this be a RunwayError?
+class RequiredTagNotFoundError(CfnginError):  # TODO should this be a RunwayError?
     """Required tag not found on resource."""
 
     resource: str

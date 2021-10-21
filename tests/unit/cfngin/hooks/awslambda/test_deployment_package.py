@@ -16,7 +16,11 @@ from runway.core.providers.aws.s3 import Bucket
 
 from awslambda.base_classes import Project
 from awslambda.deployment_package import DeploymentPackage, DeploymentPackageS3Object
-from awslambda.exceptions import BucketAccessDenied, BucketNotFound, RequiredTagNotFound
+from awslambda.exceptions import (
+    BucketAccessDeniedError,
+    BucketNotFoundError,
+    RequiredTagNotFoundError,
+)
 from awslambda.models.args import AwsLambdaHookArgs
 
 from .factories import MockProject
@@ -149,7 +153,7 @@ class TestDeploymentPackage:
         mocker.patch(
             f"{MODULE}.Bucket", return_value=Mock(forbidden=True, not_found=False)
         )
-        with pytest.raises(BucketAccessDenied):
+        with pytest.raises(BucketAccessDeniedError):
             assert DeploymentPackage(project).bucket
 
     def test_build(self, mocker: MockerFixture, project: ProjectTypeAlias) -> None:
@@ -227,7 +231,7 @@ class TestDeploymentPackage:
         mocker.patch(
             f"{MODULE}.Bucket", return_value=Mock(forbidden=False, not_found=True)
         )
-        with pytest.raises(BucketNotFound):
+        with pytest.raises(BucketNotFoundError):
             assert DeploymentPackage(project).bucket
 
     def test_code_sha256(
@@ -460,7 +464,7 @@ class TestDeploymentPackageS3Object:
         )
         object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
 
-        with pytest.raises(RequiredTagNotFound) as excinfo:
+        with pytest.raises(RequiredTagNotFoundError) as excinfo:
             assert DeploymentPackageS3Object(project).code_sha256
         bucket.format_bucket_path_uri.assert_called_once_with(key=object_key)
         assert excinfo.value.resource == bucket.format_bucket_path_uri.return_value
@@ -589,7 +593,7 @@ class TestDeploymentPackageS3Object:
         )
         object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
 
-        with pytest.raises(RequiredTagNotFound) as excinfo:
+        with pytest.raises(RequiredTagNotFoundError) as excinfo:
             assert DeploymentPackageS3Object(project).md5_checksum
         bucket.format_bucket_path_uri.assert_called_once_with(key=object_key)
         assert excinfo.value.resource == bucket.format_bucket_path_uri.return_value
@@ -668,7 +672,7 @@ class TestDeploymentPackageS3Object:
         )
         object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
 
-        with pytest.raises(RequiredTagNotFound) as excinfo:
+        with pytest.raises(RequiredTagNotFoundError) as excinfo:
             assert DeploymentPackageS3Object(project).runtime
         bucket.format_bucket_path_uri.assert_called_once_with(key=object_key)
         assert excinfo.value.resource == bucket.format_bucket_path_uri.return_value

@@ -17,7 +17,7 @@ from awslambda.docker import (
     DEFAULT_IMAGE_TAG,
     DockerDependencyInstaller,
 )
-from awslambda.exceptions import DockerConnectionRefused
+from awslambda.exceptions import DockerConnectionRefusedError
 from awslambda.models.args import DockerOptions
 
 from ....mock_docker.fake_api import FAKE_IMAGE_ID
@@ -193,7 +193,7 @@ class TestDockerDependencyInstaller:
             f"{MODULE}.DockerClient.from_env",
             side_effect=DockerException(error_msg),
         )
-        with pytest.raises(DockerConnectionRefused):
+        with pytest.raises(DockerConnectionRefusedError):
             DockerDependencyInstaller.from_project(
                 Mock(args=Mock(docker=DockerOptions(disabled=False)))
             )
@@ -206,7 +206,7 @@ class TestDockerDependencyInstaller:
         )
         client = Mock(ping=Mock(return_value=False))
         from_env = mocker.patch(f"{MODULE}.DockerClient.from_env", return_value=client)
-        with pytest.raises(DockerConnectionRefused):
+        with pytest.raises(DockerConnectionRefusedError):
             DockerDependencyInstaller.from_project(project)
         from_env.assert_called_once_with(environment=project.ctx.env.vars)
         client.ping.assert_called_once_with()
