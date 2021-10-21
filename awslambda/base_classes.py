@@ -95,7 +95,6 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         """Directory being used to build deployment package."""
         result = (
             BASE_WORK_DIR
-            / self.runtime
             / f"{self.source_code.root_directory.name}.{self.source_code.md5_hash}"
         )
         result.mkdir(exist_ok=True, parents=True)

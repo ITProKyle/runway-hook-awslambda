@@ -331,11 +331,10 @@ class TestDeploymentPackage:
         obj = DeploymentPackage(project)
         if object_prefix:
             expected_prefix = (
-                f"awslambda/functions/{project.runtime}/"
-                f"{object_prefix.lstrip('/').rstrip('/')}"
+                f"awslambda/functions/{object_prefix.lstrip('/').rstrip('/')}"
             )
         else:
-            expected_prefix = f"awslambda/functions/{project.runtime}"
+            expected_prefix = "awslambda/functions"
         assert obj.object_key == f"{expected_prefix}/{obj.archive_file.name}"
 
     @pytest.mark.parametrize(
@@ -411,7 +410,6 @@ class TestDeploymentPackage:
                 "Body": obj.archive_file.read_bytes(),
                 "Bucket": project.args.bucket_name,
                 "ContentMD5": md5_checksum,
-                # "ContentType": "application/zip",
                 "ContentType": mock_guess_type.return_value[0],
                 "Key": key,
                 "Tagging": mock_build_tag_set.return_value,

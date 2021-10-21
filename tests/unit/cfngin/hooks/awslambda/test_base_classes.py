@@ -225,9 +225,9 @@ class TestProject:
             Project, "source_code", Mock(md5_hash="hash", root_directory=tmp_path)
         )
         mocker.patch(f"{MODULE}.BASE_WORK_DIR", tmp_path)
-        expected = tmp_path / "bar" / f"{tmp_path.name}.hash"
+        expected = tmp_path / f"{tmp_path.name}.hash"
 
-        obj = Project(Mock(runtime="bar"), Mock())
+        obj = Project(Mock(), Mock())
         assert obj.build_directory == expected
         assert expected.is_dir()
 
