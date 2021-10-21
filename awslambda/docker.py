@@ -26,7 +26,7 @@ from runway._logging import PrefixAdaptor
 from runway.compat import cached_property
 
 from .constants import AWS_SAM_BUILD_IMAGE_PREFIX
-from .exceptions import DockerConnectionRefusedError
+from .exceptions import DockerConnectionRefusedError, DockerExecFailedError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -312,6 +312,9 @@ class DockerDependencyInstaller:
             command: Command to be run.
             level: Log level to use when logging messages.
 
+        Raises:
+            DockerExecFailedError: Docker container returned a non-zero exit code.
+
         Returns:
             List of log messages.
 
@@ -331,12 +334,10 @@ class DockerDependencyInstaller:
                 container.logs(stderr=True, stdout=True, stream=True), level=level
             )
         finally:
-            exit_code = container.wait().get("StatusCode", 0)
+            response = container.wait()
             container.remove(force=True)  # always remove container
-            if exit_code != 0:
-                raise RuntimeError(  # TODO make custom error
-                    f"Docker container exited with non-zero exit code: {exit_code}",
-                )
+            if response.get("StatusCode", 0) != 0:
+                raise DockerExecFailedError(response)
 
     @classmethod
     def from_project(

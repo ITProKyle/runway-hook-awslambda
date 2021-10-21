@@ -17,7 +17,7 @@ from awslambda.docker import (
     DEFAULT_IMAGE_TAG,
     DockerDependencyInstaller,
 )
-from awslambda.exceptions import DockerConnectionRefusedError
+from awslambda.exceptions import DockerConnectionRefusedError, DockerExecFailedError
 from awslambda.models.args import DockerOptions
 
 from ....mock_docker.fake_api import FAKE_IMAGE_ID
@@ -502,10 +502,11 @@ class TestDockerDependencyInstaller:
         self, mocker: MockerFixture
     ) -> None:
         """Test run_command container non-zero exit code."""
+        error_msg = "error msg"
         container = Mock(
             logs=Mock(return_value="log-stream"),
             start=Mock(side_effect=DockerException),
-            wait=Mock(return_value={"StatusCode": 1}),
+            wait=Mock(return_value={"StatusCode": 1, "Error": {"Message": error_msg}}),
         )
         mock_log_docker_msg_bytes = mocker.patch.object(
             DockerDependencyInstaller, "log_docker_msg_bytes", return_value=["logs"]
@@ -515,14 +516,12 @@ class TestDockerDependencyInstaller:
             DockerDependencyInstaller, "environmet_variables", {"foo": "bar"}
         )
         mocker.patch.object(DockerDependencyInstaller, "image", "image")
-        with pytest.raises(RuntimeError) as excinfo:
+        with pytest.raises(DockerExecFailedError) as excinfo:
             DockerDependencyInstaller(
                 Mock(),
                 client=Mock(containers=Mock(create=Mock(return_value=container))),
             ).run_command("foo")
-        assert (
-            str(excinfo.value) == "Docker container exited with non-zero exit code: 1"
-        )
+        assert str(excinfo.value) == error_msg
         container.start.assert_called_once_with()
         container.logs.assert_not_called()
         mock_log_docker_msg_bytes.assert_not_called()
