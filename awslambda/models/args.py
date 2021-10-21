@@ -135,7 +135,13 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """
 
     object_prefix: Optional[str] = None
-    """Prefix to add to the S3 Object key."""
+    """Prefix to add to the S3 Object key.
+
+    The object will always be prefixed with ``awslambda/functions``.
+    If provided, the value will be added to the end of the static prefix
+    (e.g. ``awslambda/functions/<object_prefix>/<file-name>``).
+
+    """
 
     runtime: str
     """Runtime of the Lambda Function."""

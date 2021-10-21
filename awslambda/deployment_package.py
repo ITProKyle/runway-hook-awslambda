@@ -158,7 +158,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     @cached_property
     def object_key(self) -> str:
         """Key to use when upload object to AWS S3."""
-        prefix = f"awslambda/functions/{self.project.runtime}"
+        prefix = "awslambda/functions"
         if self.project.args.object_prefix:
             prefix = (
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
