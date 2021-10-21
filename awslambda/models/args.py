@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from pydantic import DirectoryPath, Extra, FilePath, validator
 from runway.cfngin.hooks.base import HookArgsBaseModel
+from runway.config.models.utils import resolve_path_field
 from runway.utils import BaseModel
 
 
@@ -48,7 +49,7 @@ class DockerOptions(BaseModel):
 
     """
 
-    file: Optional[FilePath] = None  # TODO resolve path
+    file: Optional[FilePath] = None
     """Dockerfile to use to build an image for use in this process.
 
     This, ``image`` , or ``runtime`` must be provided.
@@ -98,6 +99,8 @@ class DockerOptions(BaseModel):
 
         extra = Extra.ignore
 
+    _resolve_path_fields = validator("file", allow_reuse=True)(resolve_path_field)
+
 
 class AwsLambdaHookArgs(HookArgsBaseModel):
     """Base class for AWS Lambda hook arguments."""
@@ -106,7 +109,7 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """Name of the S3 Bucket where deployment package is/will  be stored.
     The Bucket must be in the same region the Lambda Function is being deployed in."""
 
-    cache_dir: Optional[DirectoryPath] = None  # TODO resolve path
+    cache_dir: Optional[Path] = None
     """Explicitly define the directory location.
     Must be an absolute path or it will be relative to the CFNgin module directory."""
 
@@ -143,9 +146,9 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     use_cache: bool = True
     """Whether to use a cache directory with pip that will persist builds (default ``True``)."""
 
-    @validator("source_code", allow_reuse=True)
-    def _resolve_path(cls, v: Path) -> Path:
-        return v.resolve()
+    _resolve_path_fields = validator("cache_dir", "source_code", allow_reuse=True)(
+        resolve_path_field
+    )
 
 
 class PythonFunctionHookArgs(AwsLambdaHookArgs):
