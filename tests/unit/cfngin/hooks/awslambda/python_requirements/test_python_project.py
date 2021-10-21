@@ -84,8 +84,25 @@ class TestPythonProject:
             tmp_requirements_txt.unlink.assert_not_called()
         mock_rmtree.assert_called_once_with(dependency_directory, ignore_errors=True)
 
-    def test_install_dependencies(self, mocker: MockerFixture) -> None:
+    def test_docker(self, mocker: MockerFixture) -> None:
+        """Test docker."""
+        from_project = mocker.patch(
+            f"{MODULE}.PythonDockerDependencyInstaller.from_project",
+            return_value="success",
+        )
+        obj = PythonProject(Mock(), Mock())
+        assert obj.docker == from_project.return_value
+        from_project.assert_called_once_with(obj)
+
+    @pytest.mark.parametrize(
+        "pipenv, poetry", [(False, False), (False, True), (True, False), (True, True)]
+    )
+    def test_install_dependencies(
+        self, mocker: MockerFixture, pipenv: bool, poetry: bool
+    ) -> None:
         """Test install_dependencies."""
+        mocker.patch.object(PythonProject, "pipenv", pipenv)
+        mocker.patch.object(PythonProject, "poetry", poetry)
         dependency_directory = mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
@@ -93,15 +110,34 @@ class TestPythonProject:
         requirements_txt = mocker.patch.object(
             PythonProject, "requirements_txt", "requirements_txt"
         )
-        assert not PythonProject(Mock(), Mock()).install_dependencies()
+        assert not PythonProject(
+            Mock(cache_dir="foo", use_cache=True), Mock()
+        ).install_dependencies()
         mock_pip.install.assert_called_once_with(
-            requirements=requirements_txt, target=dependency_directory
+            cache_dir="foo",
+            no_cache_dir=False,
+            no_deps=bool(pipenv or poetry),
+            requirements=requirements_txt,
+            target=dependency_directory,
         )
+
+    def test_install_dependencies_docker(self, mocker: MockerFixture) -> None:
+        """Test install_dependencies using Docker."""
+        mock_docker = mocker.patch.object(PythonProject, "docker")
+        mock_pip = mocker.patch.object(PythonProject, "pip")
+        mocker.patch.object(
+            PythonProject, "dependency_directory", "dependency_directory"
+        )
+        assert not PythonProject(Mock(), Mock()).install_dependencies()
+        mock_docker.install.assert_called_once_with()
+        mock_pip.assert_not_called()
 
     def test_install_dependencies_does_not_catch_errors(
         self, mocker: MockerFixture
     ) -> None:
         """Test install_dependencies does not catch errors."""
+        mocker.patch.object(PythonProject, "pipenv", False)
+        mocker.patch.object(PythonProject, "poetry", False)
         dependency_directory = mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
@@ -112,9 +148,15 @@ class TestPythonProject:
             PythonProject, "requirements_txt", "requirements_txt"
         )
         with pytest.raises(PipInstallFailedError):
-            assert not PythonProject(Mock(), Mock()).install_dependencies()
+            assert not PythonProject(
+                Mock(cache_dir="foo", use_cache=True), Mock()
+            ).install_dependencies()
         mock_pip.install.assert_called_once_with(
-            requirements=requirements_txt, target=dependency_directory
+            cache_dir="foo",
+            no_cache_dir=False,
+            no_deps=False,
+            requirements=requirements_txt,
+            target=dependency_directory,
         )
 
     @pytest.mark.parametrize(
@@ -347,6 +389,10 @@ class TestPythonProject:
         assert (
             f"{tmp_path} does not contain a requirements file" in excinfo.value.message
         )
+
+    def test_runtime(self) -> None:
+        """Test runtime."""
+        assert PythonProject(Mock(runtime="foo"), Mock()).runtime == "foo"
 
     @pytest.mark.parametrize(
         "use_pipenv, use_poetry, update_expected",

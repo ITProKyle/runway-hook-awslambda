@@ -5,6 +5,7 @@ SPHINXOPTS
 Subpackages
 apidoc
 apidocs
+autoattribute
 autoclass
 autodoc
 automodule

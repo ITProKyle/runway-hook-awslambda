@@ -16,6 +16,7 @@ from awslambda.base_classes import (
     LayerHook,
     Project,
 )
+from awslambda.models.args import AwsLambdaHookArgs
 from awslambda.models.responses import AwsLambdaHookDeployResponse
 
 if TYPE_CHECKING:
@@ -53,10 +54,10 @@ class TestAwsLambdaHook:
             "deploy"
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
-            code_sha256=deployment_package.code_sha256,
-            object_key=deployment_package.object_key,
-            object_version_id=deployment_package.object_version_id,
-            runtime=deployment_package.runtime,
+            code_sha256=deployment_package.code_sha256,  # type: ignore
+            object_key=deployment_package.object_key,  # type: ignore
+            object_version_id=deployment_package.object_version_id,  # type: ignore
+            runtime=deployment_package.runtime,  # type: ignore
         )
 
     def test_build_response_destroy(self) -> None:
@@ -81,10 +82,10 @@ class TestAwsLambdaHook:
             "plan"
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
-            code_sha256=deployment_package.code_sha256,
-            object_key=deployment_package.object_key,
-            object_version_id=deployment_package.object_version_id,
-            runtime=deployment_package.runtime,
+            code_sha256=deployment_package.code_sha256,  # type: ignore
+            object_key=deployment_package.object_key,  # type: ignore
+            object_version_id=deployment_package.object_version_id,  # type: ignore
+            runtime=deployment_package.runtime,  # type: ignore
         )
 
     def test_build_response_plan_handle_file_not_found_error(
@@ -229,6 +230,42 @@ class TestProject:
         obj = Project(Mock(runtime="bar"), Mock())
         assert obj.build_directory == expected
         assert expected.is_dir()
+
+    def test_cache_dir(self, tmp_path: Path) -> None:
+        """Test cache_dir."""
+        cache_dir = tmp_path / "test"
+        cache_dir.mkdir()
+        args = AwsLambdaHookArgs(
+            bucket_name="",
+            cache_dir=cache_dir,
+            runtime="foo",
+            source_code=tmp_path,
+            use_cache=True,
+        )
+        assert Project(args, Mock()).cache_dir == cache_dir
+
+    def test_cache_dir_default(self, mocker: MockerFixture, tmp_path: Path) -> None:
+        """Test cache_dir default."""
+        mocker.patch(f"{MODULE}.BASE_WORK_DIR", tmp_path)
+        cache_dir = tmp_path / Project.DEFAULT_CACHE_DIR_NAME
+        cache_dir.mkdir()
+        args = AwsLambdaHookArgs(
+            bucket_name="",
+            runtime="foo",
+            source_code=tmp_path,
+            use_cache=True,
+        )
+        assert Project(args, Mock()).cache_dir == cache_dir
+
+    def test_cache_dir_disabled(self, tmp_path: Path) -> None:
+        """Test cache_dir disabled."""
+        args = AwsLambdaHookArgs(
+            bucket_name="",
+            runtime="foo",
+            source_code=tmp_path,
+            use_cache=False,
+        )
+        assert not Project(args, Mock()).cache_dir
 
     def test_cleanup(self) -> None:
         """Test cleanup. Should do nothing."""

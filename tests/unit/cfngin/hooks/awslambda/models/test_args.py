@@ -21,7 +21,7 @@ class TestAwsLambdaHookArgs:
         obj = AwsLambdaHookArgs(  # these are all required fields
             bucket_name="test-bucket",
             runtime="test",
-            source_code="./",
+            source_code="./",  # type: ignore
         )
         assert obj.source_code.is_absolute()
         assert obj.source_code == Path.cwd()
@@ -76,7 +76,7 @@ class TestPythonFunctionHookArgs:
         """Test extra fields."""
         obj = PythonFunctionHookArgs(
             bucket_name="test-bucket",
-            invalid=True,
+            invalid=True,  # type: ignore
             source_code=tmp_path,
         )
         assert not obj.get("invalid")

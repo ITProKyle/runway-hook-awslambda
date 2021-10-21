@@ -17,7 +17,7 @@ class TestAwsLambdaHookDeployResponse:
             AwsLambdaHookDeployResponse(
                 bucket_name="test-bucket",
                 code_sha256="sha256",
-                invalid=True,
+                invalid=True,  # type: ignore
                 object_key="key",
                 runtime="test",
             )

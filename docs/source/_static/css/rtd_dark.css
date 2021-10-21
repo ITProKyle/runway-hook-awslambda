@@ -16,7 +16,7 @@ code.docutils {
 	color: aliceblue;
 }
 
-.method dt, .class dt, .data dt, .attribute dt, .function dt,
+.class dt, .data dt, .exception dt, .method dt, .attribute dt, .function dt,
 	.descclassname, .descname {
 	background-color: #525252 !important;
 	color: white !important;

@@ -40,9 +40,13 @@ extensions = [
 ]
 highlight_language = "default"
 intersphinx_mapping = {
+    "docker": (  # TODO add to runway
+        "https://docker-py.readthedocs.io/page",  # link to docker-py docs
+        None,
+    ),
     "python": ("https://docs.python.org/3", None),  # link to python docs
     "runway": (
-        "https://docs.onica.com/projects/runway/en/stable/",
+        "https://docs.onica.com/projects/runway/page",
         None,
     ),
 }

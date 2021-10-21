@@ -20,6 +20,7 @@
 .mypy_cache/
 .pytest_cache/
 .ropeproject
+.runway
 .scrapy
 .tox/
 .venv

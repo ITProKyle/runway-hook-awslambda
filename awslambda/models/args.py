@@ -6,35 +6,142 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import DirectoryPath, Extra, validator
+from pydantic import DirectoryPath, Extra, FilePath, validator
 from runway.cfngin.hooks.base import HookArgsBaseModel
+from runway.utils import BaseModel
 
 
-class AwsLambdaHookArgs(HookArgsBaseModel):
-    """Base class for AWS Lambda hook arguments.
+class DockerOptions(BaseModel):
+    """Docker options."""
 
-    Attributes:
-        bucket_name: Name of the S3 Bucket where deployment package is/will
-            be stored. The Bucket must be in the same region the Lambda =
-            Function is being deployed in.
-        extend_gitignore: gitignore rules that should be added to the rules
-            already defined in a ``.gitignore`` file in the source code directory.
-            This can be used with or without an existing file.
-            Files that match a gitignore rule will not be included in the
-            deployment package.
-        object_prefix: Prefix to add to the S3 Object key.
-        runtime: Runtime of the Lambda Function.
-        source_code: Path to the Lambda Function source code.
+    disabled: bool = False
+    """Explicitly disable the use of docker (default ``False``).
+
+    If not disabled and Docker is unreachable, the hook will result in an error.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            disabled: true
 
     """
 
-    # docstring & atters must be copied to subclasses for the attributes to be documented
+    extra_files: List[str] = []
+    """List of absolute file paths within the Docker container to copy into the deployment package.
+
+    Some Python packages require extra OS libraries (``*.so``) files at runtime.
+    These files need to be included in the deployment package for the Lambda Function to run.
+    List the files here and the hook will handle copying them into the deployment package.
+
+    If the file does not exist, it will result in an error.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            extra_files:
+              - /usr/lib64/mysql57/libmysqlclient.so.1020
+              - /usr/lib64/libxmlsec1-openssl.so
+
+    """
+
+    file: Optional[FilePath] = None  # TODO resolve path
+    """Dockerfile to use to build an image for use in this process.
+
+    This, ``image`` , or ``runtime`` must be provided.
+    If not provided, ``image`` will be used.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            file: Dockerfile
+
+    """
+
+    image: Optional[str] = None
+    """Docker image to use. If the image does not exist locally, it will be pulled.
+
+    This, ``file`` (takes precedence), or ``runtime`` must be provided.
+    If only ``runtime`` is provided, it will be used to determine the appropriate
+    image to use.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            image: public.ecr.aws/sam/build-python3.9:latest
+
+    """
+
+    pull: bool = True
+    """Always download updates to the specified image before use.
+    When building an image, the ``FROM`` image will be updated during the build
+    process  (default ``True``).
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          docker:
+            pull: false
+
+    """
+
+    class Config:
+        """Model configuration."""
+
+        extra = Extra.ignore
+
+
+class AwsLambdaHookArgs(HookArgsBaseModel):
+    """Base class for AWS Lambda hook arguments."""
 
     bucket_name: str
+    """Name of the S3 Bucket where deployment package is/will  be stored.
+    The Bucket must be in the same region the Lambda Function is being deployed in."""
+
+    cache_dir: Optional[DirectoryPath] = None  # TODO resolve path
+    """Explicitly define the directory location.
+    Must be an absolute path or it will be relative to the CFNgin module directory."""
+
+    docker: DockerOptions = DockerOptions()
+    """Docker options."""
+
     extend_gitignore: List[str] = []
+    """gitignore rules that should be added to the rules already defined in a
+    ``.gitignore`` file in the source code directory.
+    This can be used with or without an existing file.
+    Files that match a gitignore rule will not be included in the deployment package.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          extend_gitignore:
+            - cfngin.yml
+            - poetry.lock
+            - poetry.toml
+            - pyproject.toml
+
+    """
+
     object_prefix: Optional[str] = None
+    """Prefix to add to the S3 Object key."""
+
     runtime: str
+    """Runtime of the Lambda Function."""
+
     source_code: DirectoryPath
+    """Path to the Lambda Function source code."""
+
+    use_cache: bool = True
+    """Whether to use a cache directory with pip that will persist builds (default ``True``)."""
 
     @validator("source_code", allow_reuse=True)
     def _resolve_path(cls, v: Path) -> Path:
@@ -42,37 +149,23 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
 
 class PythonFunctionHookArgs(AwsLambdaHookArgs):
-    """Hook arguments for a Python function.
+    """Hook arguments for a Python function."""
 
-    Attributes:
-        bucket_name: Name of the S3 Bucket where deployment package is/will
-            be stored. The Bucket must be in the same region the Lambda =
-            Function is being deployed in.
-        extend_gitignore: gitignore rules that should be added to the rules
-            already defined in a ``.gitignore`` file in the source code directory.
-            This can be used with or without an existing file.
-            Files that match a gitignore rule will not be included in the
-            deployment package.
-        extend_pip_args: Additional arguments that should be passed to pip.
-        object_prefix: Prefix to add to the S3 Object key.
-        runtime: Runtime of the Lambda Function. The value must be a Python
-            runtime supported by AWS Lambda
-            (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
-        source_code: Path to the Lambda Function source code.
-        use_pipenv: Whether pipenv should be used if determined appropriate.
-        use_poetry: Whether poetry should be used if determined appropriate.
-
-    """
-
-    bucket_name: str
-    extend_gitignore: List[str] = []
     extend_pip_args: Optional[List[str]] = None
-    object_prefix: Optional[str] = None
-    runtime: str
+    """Additional arguments that should be passed to pip."""
+
+    # TODO factor docker image into runtime
+    # TODO get runtime from custom image
     runtime: str = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    source_code: DirectoryPath
+    """Runtime of the Lambda Function.
+    The value must be a Python runtime supported by AWS Lambda
+    (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html)."""
+
     use_pipenv: bool = True
+    """Whether pipenv should be used if determined appropriate."""
+
     use_poetry: bool = True
+    """Whether poetry should be used if determined appropriate."""
 
     class Config:
         """Model configuration."""

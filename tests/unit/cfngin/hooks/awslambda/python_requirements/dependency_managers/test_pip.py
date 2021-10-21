@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import shlex
 import subprocess
-from typing import TYPE_CHECKING, Dict, List, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 import pytest
 from mock import Mock
@@ -17,8 +18,6 @@ from awslambda.python_requirements.dependency_managers._pip import (
 )
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest import LogCaptureFixture
     from pytest_mock import MockerFixture
 
@@ -48,6 +47,47 @@ class TestPip:
         mock_generate_command_handle_kwargs.assert_called_once_with(**kwargs)
         assert f"generated command: {shlex.join(expected)}" in caplog.messages
 
+    @pytest.mark.parametrize(
+        "call_args, expected",
+        [
+            (
+                {"no_deps": True, "requirements": "./foo.txt", "target": "./target"},
+                {"no_deps": True, "requirement": "./foo.txt", "target": "./target"},
+            ),
+            (
+                {
+                    "cache_dir": Path("./cache_dir"),
+                    "no_cache_dir": True,
+                    "requirements": Path("./foo.txt"),
+                    "target": Path("./target"),
+                },
+                {
+                    "cache_dir": "cache_dir",
+                    "no_cache_dir": True,
+                    "requirement": "foo.txt",
+                    "target": "target",
+                },
+            ),
+        ],
+    )
+    def test_generate_install_command(
+        self, call_args: Dict[str, Any], expected: Dict[str, Any], mocker: MockerFixture
+    ) -> None:
+        """Test generate_install_command."""
+        expected.setdefault("cache_dir", None)
+        expected.setdefault("disable_pip_version_check", True)
+        expected.setdefault("no_cache_dir", False)
+        expected.setdefault("no_deps", False)
+        expected.setdefault("no_input", True)
+        mock_generate_command = mocker.patch.object(
+            Pip, "generate_command", return_value="generate_command"
+        )
+        assert (
+            Pip.generate_install_command(**call_args)
+            == mock_generate_command.return_value
+        )
+        mock_generate_command.assert_called_once_with("install", **expected)
+
     @pytest.mark.parametrize("target_already_exists", [False, True])
     def test_install(
         self, mocker: MockerFixture, target_already_exists: bool, tmp_path: Path
@@ -57,8 +97,8 @@ class TestPip:
         target = tmp_path / "foo" / "bar"
         if target_already_exists:
             target.mkdir(parents=True)
-        mock_generate_command = mocker.patch.object(
-            Pip, "generate_command", return_value="generate_command"
+        mock_generate_install_command = mocker.patch.object(
+            Pip, "generate_install_command", return_value="generate_install_command"
         )
         mock_run_command = mocker.patch.object(
             Pip, "_run_command", return_value="_run_command"
@@ -69,14 +109,15 @@ class TestPip:
             == target
         )
         assert target.is_dir(), "target directory and parents created"
-        mock_generate_command.assert_called_once_with(
-            "install",
-            disable_pip_version_check=True,
-            requirement=str(requirements_txt),
-            target=str(target),
+        mock_generate_install_command.assert_called_once_with(
+            cache_dir=None,
+            no_cache_dir=False,
+            no_deps=False,
+            requirements=requirements_txt,
+            target=target,
         )
         mock_run_command.assert_called_once_with(
-            mock_generate_command.return_value, suppress_output=False
+            mock_generate_install_command.return_value, suppress_output=False
         )
 
     def test_install_raise_from_called_process_error(
@@ -85,7 +126,9 @@ class TestPip:
         """Test install raise from CalledProcessError."""
         requirements_txt = tmp_path / "requirements.txt"
         target = tmp_path / "foo" / "bar"
-        mocker.patch.object(Pip, "generate_command", return_value="generate_command")
+        mocker.patch.object(
+            Pip, "generate_install_command", return_value="generate_install_command"
+        )
         mocker.patch.object(
             Pip,
             "_run_command",

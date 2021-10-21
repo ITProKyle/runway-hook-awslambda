@@ -28,7 +28,11 @@ from runway.utils import FileHash
 from typing_extensions import Literal
 
 from .base_classes import Project
-from .exceptions import BucketAccessDenied, BucketNotFound, RequiredTagNotFound
+from .exceptions import (
+    BucketAccessDeniedError,
+    BucketNotFoundError,
+    RequiredTagNotFoundError,
+)
 from .models.args import AwsLambdaHookArgs
 
 if TYPE_CHECKING:
@@ -98,9 +102,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         """AWS S3 bucket where deployment package will be uploaded."""
         bucket = Bucket(self.project.ctx, self.project.args.bucket_name)
         if bucket.forbidden:
-            raise BucketAccessDenied(bucket)
+            raise BucketAccessDeniedError(bucket)
         if bucket.not_found:
-            raise BucketNotFound(bucket)
+            raise BucketNotFoundError(bucket)
         return bucket
 
     @cached_property
@@ -374,7 +378,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
 
         """
         if self.META_TAGS["code_sha256"] not in self.object_tags:
-            raise RequiredTagNotFound(
+            raise RequiredTagNotFoundError(
                 self.bucket.format_bucket_path_uri(key=self.object_key),
                 self.META_TAGS["code_sha256"],
             )
@@ -420,11 +424,11 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             Value to pass as ContentMD5 when uploading to AWS S3.
 
         Raises:
-            RequiredTagNotFound: A required tag was not found.
+            RequiredTagNotFoundError: A required tag was not found.
 
         """
         if self.META_TAGS["md5_checksum"] not in self.object_tags:
-            raise RequiredTagNotFound(
+            raise RequiredTagNotFoundError(
                 self.bucket.format_bucket_path_uri(key=self.object_key),
                 self.META_TAGS["md5_checksum"],
             )
@@ -459,11 +463,11 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         """Runtime of the deployment package.
 
         Raises:
-            RequiredTagNotFound: A required tag was not found.
+            RequiredTagNotFoundError: A required tag was not found.
 
         """
         if self.META_TAGS["runtime"] not in self.object_tags:
-            raise RequiredTagNotFound(
+            raise RequiredTagNotFoundError(
                 self.bucket.format_bucket_path_uri(key=self.object_key),
                 self.META_TAGS["runtime"],
             )
