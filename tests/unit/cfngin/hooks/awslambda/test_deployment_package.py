@@ -334,7 +334,7 @@ class TestDeploymentPackage:
                 f"awslambda/functions/{object_prefix.lstrip('/').rstrip('/')}"
             )
         else:
-            expected_prefix = f"awslambda/functions"
+            expected_prefix = "awslambda/functions"
         assert obj.object_key == f"{expected_prefix}/{obj.archive_file.name}"
 
     @pytest.mark.parametrize(
