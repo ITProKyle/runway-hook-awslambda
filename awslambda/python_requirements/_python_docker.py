@@ -79,6 +79,7 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller):
                     requirements=f"/var/task/{self.project.requirements_txt.name}",
                     target=self.DEPENDENCY_DIR,
                 )
+                + (self.project.args.extend_pip_args or [])
             )
         ]
 

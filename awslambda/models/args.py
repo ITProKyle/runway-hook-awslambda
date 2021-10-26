@@ -177,7 +177,22 @@ class PythonFunctionHookArgs(AwsLambdaHookArgs):
     """Hook arguments for a Python function."""
 
     extend_pip_args: Optional[List[str]] = None
-    """Additional arguments that should be passed to pip."""
+    """Additional arguments that should be passed to ``pip install``.
+
+    .. important::
+      When providing this field, be careful not to duplicate any of the arguments
+      passed by this hook (e.g. ``--requirements``, ``--target``, ``--no-input``).
+      Providing duplicate arguments will result in an error.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          extend_pip_args:
+            - '--proxy'
+            - '[user:passwd@]proxy.server:port'
+
+    """
 
     use_pipenv: bool = True
     """Whether pipenv should be used if determined appropriate."""

@@ -80,12 +80,11 @@ class TestPip:
         expected.setdefault("no_deps", False)
         expected.setdefault("no_input", True)
         mock_generate_command = mocker.patch.object(
-            Pip, "generate_command", return_value="generate_command"
+            Pip, "generate_command", return_value=["generate_command"]
         )
-        assert (
-            Pip.generate_install_command(**call_args)
-            == mock_generate_command.return_value
-        )
+        assert Pip.generate_install_command(
+            **call_args
+        ) == mock_generate_command.return_value + call_args.get("extend_args", [])
         mock_generate_command.assert_called_once_with("install", **expected)
 
     @pytest.mark.parametrize("target_already_exists", [False, True])
@@ -98,14 +97,18 @@ class TestPip:
         if target_already_exists:
             target.mkdir(parents=True)
         mock_generate_install_command = mocker.patch.object(
-            Pip, "generate_install_command", return_value="generate_install_command"
+            Pip, "generate_install_command", return_value=["generate_install_command"]
         )
         mock_run_command = mocker.patch.object(
             Pip, "_run_command", return_value="_run_command"
         )
 
         assert (
-            Pip(Mock(), tmp_path).install(requirements=requirements_txt, target=target)
+            Pip(Mock(), tmp_path).install(
+                extend_args=["--foo", "bar"],
+                requirements=requirements_txt,
+                target=target,
+            )
             == target
         )
         assert target.is_dir(), "target directory and parents created"
@@ -117,7 +120,8 @@ class TestPip:
             target=target,
         )
         mock_run_command.assert_called_once_with(
-            mock_generate_install_command.return_value, suppress_output=False
+            mock_generate_install_command.return_value + ["--foo", "bar"],
+            suppress_output=False,
         )
 
     def test_install_raise_from_called_process_error(
@@ -127,7 +131,7 @@ class TestPip:
         requirements_txt = tmp_path / "requirements.txt"
         target = tmp_path / "foo" / "bar"
         mocker.patch.object(
-            Pip, "generate_install_command", return_value="generate_install_command"
+            Pip, "generate_install_command", return_value=["generate_install_command"]
         )
         mocker.patch.object(
             Pip,
