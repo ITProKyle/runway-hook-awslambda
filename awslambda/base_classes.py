@@ -258,6 +258,16 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 
         """
 
+    def cleanup_on_error(self) -> None:
+        """Cleanup project files when an error occurs.
+
+        This will be run before ``self.cleanup()`` if an error has occurred.
+
+        Hooks should call this method in an ``except`` block and reraise the
+        error afterward.
+
+        """
+
     def install_dependencies(self) -> None:
         """Install project dependencies.
 
@@ -363,6 +373,50 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
                 object_version_id=self.deployment_package.object_version_id,
                 runtime=self.deployment_package.runtime,
             )
+
+    def cleanup(self) -> None:
+        """Cleanup temporary files at the end of execution.
+
+        If any cleanup is needed (e.g. removal of temporary dependency directory)
+        it should be implimented here. A Hook's stage methods should call this
+        method in a ``finally`` block to ensure it is run even if the rest of
+        the hook encountered an error.
+
+        .. rubric:: Example
+        .. code-block:: python
+
+            def pre_deploy(self) -> Any:
+                try:
+                    pass  # primary logic
+                except BaseException:
+                    self.cleanup_on_error()
+                    raise
+                finally:
+                    self.cleanup()
+
+        """
+
+    def cleanup_on_error(self) -> None:
+        """Cleanup temporary files when an error occurs.
+
+        This will be run before ``self.cleanup()`` if an error has occurred.
+
+        A Hook's stage method should call this method in an ``except`` block
+        and reraise the error afterward.
+
+        .. rubric:: Example
+        .. code-block:: python
+
+            def pre_deploy(self) -> Any:
+                try:
+                    pass  # primary logic
+                except BaseException:
+                    self.cleanup_on_error()
+                    raise
+                finally:
+                    self.cleanup()
+
+        """
 
     def plan(self) -> AwsLambdaHookDeployResponseTypedDict:
         """Run during the **plan** stage."""
