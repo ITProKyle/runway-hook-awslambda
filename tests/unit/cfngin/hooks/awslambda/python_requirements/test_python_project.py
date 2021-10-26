@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, List, Sequence
 
 import pytest
-from mock import Mock
+from mock import Mock, call
 
 from awslambda.python_requirements._python_project import (
     PythonProject,
@@ -58,6 +58,11 @@ class TestPythonProject:
         poetry_value: bool,
     ) -> None:
         """Test cleanup."""
+        build_directory = mocker.patch.object(
+            PythonProject,
+            "build_directory",
+            Mock(name="build_directory", iterdir=Mock(return_value=iter([]))),
+        )
         dependency_directory = mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
@@ -82,6 +87,35 @@ class TestPythonProject:
             tmp_requirements_txt.unlink.assert_called_once_with()
         else:
             tmp_requirements_txt.unlink.assert_not_called()
+        build_directory.iterdir.assert_called_once_with()
+        mock_rmtree.assert_has_calls(
+            [  # type: ignore
+                call(dependency_directory, ignore_errors=True),
+                call(build_directory, ignore_errors=True),
+            ]
+        )
+
+    def test_cleanup_build_directory_not_empty(self, mocker: MockerFixture) -> None:
+        """Test cleanup build_directory not empty."""
+        build_directory = mocker.patch.object(
+            PythonProject,
+            "build_directory",
+            Mock(name="build_directory", iterdir=Mock(return_value=iter(["foobar"]))),
+        )
+        dependency_directory = mocker.patch.object(
+            PythonProject, "dependency_directory", "dependency_directory"
+        )
+        mock_rmtree = mocker.patch("shutil.rmtree")
+        mocker.patch.object(
+            PythonProject,
+            "tmp_requirements_txt",
+            Mock(exists=Mock(return_value=False)),
+        )
+        mocker.patch.object(PythonProject, "pipenv", None)
+        mocker.patch.object(PythonProject, "poetry", None)
+
+        assert not PythonProject(Mock(), Mock()).cleanup()
+        build_directory.iterdir.assert_called_once_with()
         mock_rmtree.assert_called_once_with(dependency_directory, ignore_errors=True)
 
     def test_docker(self, mocker: MockerFixture) -> None:

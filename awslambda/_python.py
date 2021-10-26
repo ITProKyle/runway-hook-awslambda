@@ -39,13 +39,21 @@ class PythonFunction(FunctionHook[PythonProject]):
         return PythonProject(self.args, self.ctx)
 
     def cleanup(self) -> None:
-        """Cleanup."""
+        """Cleanup after execution."""
         self.project.cleanup()
+
+    def cleanup_on_error(self) -> None:
+        """Cleanup after an error has occurred."""
+        self.deployment_package.archive_file.unlink(missing_ok=True)
+        self.project.cleanup_on_error()
 
     def pre_deploy(self) -> Any:
         """Run during the **pre_deploy** stage."""
         try:
             self.deployment_package.upload()
             return self.build_response("deploy").dict(by_alias=True)
+        except BaseException:
+            self.cleanup_on_error()
+            raise
         finally:
             self.cleanup()

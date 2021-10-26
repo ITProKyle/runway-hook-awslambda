@@ -190,6 +190,9 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         if (self.poetry or self.pipenv) and self.tmp_requirements_txt.exists():
             self.tmp_requirements_txt.unlink()
         shutil.rmtree(self.dependency_directory, ignore_errors=True)
+        if not any(self.build_directory.iterdir()):
+            # remove build_directory if it's empty
+            shutil.rmtree(self.build_directory, ignore_errors=True)
 
     def install_dependencies(self) -> None:
         """Install project dependencies."""
