@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
     from pytest_mock import MockerFixture
 
+MODULE = "awslambda.python_requirements.dependency_managers._poetry"
+
 
 class TestPoetry:
     """Test Poetry."""
@@ -118,13 +120,21 @@ class TestPoetry:
             == f"poetry export failed with the following output:\n{mock_run_command.return_value}"
         )
 
-    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "cmd_output, expected",
+        [("Poetry version 1.1.11", "1.1.11"), ("unexpected output", "0.0.0")],
+    )
+    def test_version(
+        self, cmd_output: str, expected: str, mocker: MockerFixture, tmp_path: Path
+    ) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
-            Poetry, "_run_command", return_value="success"
+            Poetry, "_run_command", return_value=cmd_output
         )
-        assert Poetry(Mock(), tmp_path).version == mock_run_command.return_value
+        version_cls = mocker.patch(f"{MODULE}.Version", return_value="success")
+        assert Poetry(Mock(), tmp_path).version == version_cls.return_value
         mock_run_command.assert_called_once_with([Poetry.EXECUTABLE, "--version"])
+        version_cls.assert_called_once_with(expected)
 
 
 @pytest.mark.parametrize(

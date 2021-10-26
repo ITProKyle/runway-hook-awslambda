@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Tuple, Union
@@ -11,6 +12,7 @@ from runway.compat import cached_property
 from typing_extensions import Literal
 
 from ...base_classes import DependencyManager
+from ...utils import Version
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -55,9 +57,16 @@ class Pipenv(DependencyManager):
     EXECUTABLE: Final[Literal["pipenv"]] = "pipenv"
 
     @cached_property
-    def version(self) -> str:
-        """Get pipenv version."""
-        return self._run_command([self.EXECUTABLE, "--version"])
+    def version(self) -> Version:
+        """pipenv version."""
+        cmd_output = self._run_command([self.EXECUTABLE, "--version"])
+        match = re.search(r"^pipenv, version (?P<version>\S*)", cmd_output)
+        if not match:
+            LOGGER.warning(
+                "unable to parse pipenv version from output:\n%s", cmd_output
+            )
+            return Version("0.0.0")
+        return Version(match.group("version"))
 
     def export(self, *, dev: bool = False, output: StrPath) -> Path:
         """Export the lock file to other formats (requirements.txt only).

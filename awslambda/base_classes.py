@@ -25,6 +25,7 @@ from .mixins import CliInterfaceMixin
 from .models.args import AwsLambdaHookArgs
 from .models.responses import AwsLambdaHookDeployResponse
 from .source_code import SourceCode
+from .utils import Version
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -66,7 +67,7 @@ class DependencyManager(CliInterfaceMixin):
         self.cwd = cwd if isinstance(cwd, Path) else Path(cwd)
 
     @cached_property
-    def version(self) -> str:
+    def version(self) -> Version:
         """Get executable version."""
         raise NotImplementedError
 
