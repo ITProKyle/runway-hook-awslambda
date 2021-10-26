@@ -2,9 +2,8 @@
 # pylint: disable=no-self-argument,no-self-use
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import DirectoryPath, Extra, FilePath, validator
 from runway.cfngin.hooks.base import HookArgsBaseModel
@@ -143,8 +142,11 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
     """
 
-    runtime: str
-    """Runtime of the Lambda Function."""
+    runtime: Optional[str] = None
+    """Runtime of the Lambda Function
+    (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
+
+    """
 
     source_code: DirectoryPath
     """Path to the Lambda Function source code."""
@@ -156,19 +158,26 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
         resolve_path_field
     )
 
+    @validator("runtime", always=True, allow_reuse=True)
+    def _validate_runtime_or_docker(
+        cls, v: Optional[str], values: Dict[str, Any]
+    ) -> Optional[str]:
+        """Validate that either runtime is provided or Docker image is provided."""
+        if v:  # if runtime was provided, we don't need to check anything else
+            return v
+        docker: DockerOptions = values["docker"]
+        if docker.disabled:
+            raise ValueError("runtime must be provided if docker.disabled is True")
+        if not (docker.file or docker.image):
+            raise ValueError("docker.file, docker.image, or runtime is required")
+        return v
+
 
 class PythonFunctionHookArgs(AwsLambdaHookArgs):
     """Hook arguments for a Python function."""
 
     extend_pip_args: Optional[List[str]] = None
     """Additional arguments that should be passed to pip."""
-
-    # TODO factor docker image into runtime
-    # TODO get runtime from custom image
-    runtime: str = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    """Runtime of the Lambda Function.
-    The value must be a Python runtime supported by AWS Lambda
-    (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html)."""
 
     use_pipenv: bool = True
     """Whether pipenv should be used if determined appropriate."""

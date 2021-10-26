@@ -390,10 +390,6 @@ class TestPythonProject:
             f"{tmp_path} does not contain a requirements file" in excinfo.value.message
         )
 
-    def test_runtime(self) -> None:
-        """Test runtime."""
-        assert PythonProject(Mock(runtime="foo"), Mock()).runtime == "foo"
-
     @pytest.mark.parametrize(
         "use_pipenv, use_poetry, update_expected",
         [

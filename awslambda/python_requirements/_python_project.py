@@ -162,11 +162,6 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         raise PythonRequirementsNotFoundError(self.project_root)
 
     @cached_property
-    def runtime(self) -> str:
-        """Runtime of the deployment package."""
-        return self.args.runtime  # TODO account for docker
-
-    @cached_property
     def supported_metadata_files(self) -> Set[str]:
         """Names of all supported metadata files.
 

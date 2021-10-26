@@ -279,7 +279,7 @@ class TestDockerDependencyInstaller:
             assert not obj.image
         build_image.assert_not_called()
         pull_image.assert_not_called()
-        assert str(excinfo.value) == "docker.file, docker.image, or runtime required"
+        assert str(excinfo.value) == "docker.file, docker.image, or runtime is required"
 
     def test_install(self, mocker: MockerFixture) -> None:
         """Test install"""
