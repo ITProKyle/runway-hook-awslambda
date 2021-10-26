@@ -199,6 +199,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         else:
             self.pip.install(
                 cache_dir=self.args.cache_dir,
+                extend_args=self.args.extend_pip_args,
                 no_cache_dir=not self.args.use_cache,
                 no_deps=bool(self.poetry or self.pipenv),
                 requirements=self.requirements_txt,

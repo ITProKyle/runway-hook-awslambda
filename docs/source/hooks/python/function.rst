@@ -59,6 +59,9 @@ When specifying the field, exclude the class name.
 .. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.extend_gitignore
   :noindex:
 
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.extend_pip_args
+  :noindex:
+
 .. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.object_prefix
   :noindex:
 
@@ -69,6 +72,12 @@ When specifying the field, exclude the class name.
   :noindex:
 
 .. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_cache
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_pipenv
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_poetry
   :noindex:
 
 

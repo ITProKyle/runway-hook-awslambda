@@ -60,11 +60,12 @@ class TestPythonDockerDependencyInstaller:
         self, mocker: MockerFixture, pipenv: bool, poetry: bool, tmp_path: Path
     ) -> None:
         """Test install_commands."""
+        args = Mock(extend_pip_args=["--foo", "bar"], use_cache=True)
         mock_generate_install_command = Mock(return_value=["cmd"])
         mock_join = mocker.patch(f"{MODULE}.shlex.join", return_value="success")
         requirements_txt = tmp_path / "requirements.txt"
         project = Mock(
-            args=Mock(use_cache=True),
+            args=args,
             cache_dir="cache_dir",
             pip=Mock(generate_install_command=mock_generate_install_command),
             pipenv=pipenv,
@@ -80,7 +81,9 @@ class TestPythonDockerDependencyInstaller:
             requirements=f"/var/task/{requirements_txt.name}",
             target=PythonDockerDependencyInstaller.DEPENDENCY_DIR,
         )
-        mock_join.assert_called_once_with(mock_generate_install_command.return_value)
+        mock_join.assert_called_once_with(
+            mock_generate_install_command.return_value + args.extend_pip_args
+        )
 
     def test_python_version(self, mocker: MockerFixture) -> None:
         """Test python_version."""

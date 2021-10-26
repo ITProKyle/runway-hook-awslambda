@@ -101,6 +101,7 @@ class TestPythonProject:
         self, mocker: MockerFixture, pipenv: bool, poetry: bool
     ) -> None:
         """Test install_dependencies."""
+        args = Mock(cache_dir="foo", extend_pip_args=["--foo", "bar"], use_cache=True)
         mocker.patch.object(PythonProject, "pipenv", pipenv)
         mocker.patch.object(PythonProject, "poetry", poetry)
         dependency_directory = mocker.patch.object(
@@ -110,11 +111,10 @@ class TestPythonProject:
         requirements_txt = mocker.patch.object(
             PythonProject, "requirements_txt", "requirements_txt"
         )
-        assert not PythonProject(
-            Mock(cache_dir="foo", use_cache=True), Mock()
-        ).install_dependencies()
+        assert not PythonProject(args, Mock()).install_dependencies()
         mock_pip.install.assert_called_once_with(
             cache_dir="foo",
+            extend_args=args.extend_pip_args,
             no_cache_dir=False,
             no_deps=bool(pipenv or poetry),
             requirements=requirements_txt,
@@ -149,10 +149,11 @@ class TestPythonProject:
         )
         with pytest.raises(PipInstallFailedError):
             assert not PythonProject(
-                Mock(cache_dir="foo", use_cache=True), Mock()
+                Mock(cache_dir="foo", extend_pip_args=None, use_cache=True), Mock()
             ).install_dependencies()
         mock_pip.install.assert_called_once_with(
             cache_dir="foo",
+            extend_args=None,
             no_cache_dir=False,
             no_deps=False,
             requirements=requirements_txt,

@@ -93,6 +93,7 @@ class Pip(DependencyManager):
         self,
         *,
         cache_dir: Optional[StrPath] = None,
+        extend_args: Optional[List[str]] = None,
         no_cache_dir: bool = False,
         no_deps: bool = False,
         requirements: StrPath,
@@ -102,6 +103,11 @@ class Pip(DependencyManager):
 
         Args:
             cache_dir: Store the cache data in the provided directory.
+            extend_args: Optional list of extra arguments to pass to ``pip install``.
+                This value will not be parsed or sanitized in any way - it will
+                be used as is. It is the user's responsability to ensure that
+                there are no overlapping arguments between this list and the
+                arguments that are automatically generated.
             no_cache_dir: Disable the cache.
             no_deps: Don't install package dependencies.
             requirements: Path to a ``requirements.txt`` file.
@@ -122,7 +128,8 @@ class Pip(DependencyManager):
                     no_deps=no_deps,
                     requirements=requirements,
                     target=target,
-                ),
+                )
+                + (extend_args or []),
                 suppress_output=False,
             )
         except subprocess.CalledProcessError as exc:
