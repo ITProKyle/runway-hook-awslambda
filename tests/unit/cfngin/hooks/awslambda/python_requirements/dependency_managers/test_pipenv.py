@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from pytest import LogCaptureFixture
     from pytest_mock import MockerFixture
 
+MODULE = "awslambda.python_requirements.dependency_managers._pipenv"
+
 
 class TestPipenv:
     """Test pipenv."""
@@ -87,13 +89,21 @@ class TestPipenv:
             mock_generate_command.return_value, suppress_output=True
         )
 
-    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "cmd_output, expected",
+        [("pipenv, version 2018.11.26", "2018.11.26"), ("unexpected output", "0.0.0")],
+    )
+    def test_version(
+        self, cmd_output: str, expected: str, mocker: MockerFixture, tmp_path: Path
+    ) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
-            Pipenv, "_run_command", return_value="success"
+            Pipenv, "_run_command", return_value=cmd_output
         )
-        assert Pipenv(Mock(), tmp_path).version == mock_run_command.return_value
+        version_cls = mocker.patch(f"{MODULE}.Version", return_value="success")
+        assert Pipenv(Mock(), tmp_path).version == version_cls.return_value
         mock_run_command.assert_called_once_with([Pipenv.EXECUTABLE, "--version"])
+        version_cls.assert_called_once_with(expected)
 
 
 @pytest.mark.parametrize(

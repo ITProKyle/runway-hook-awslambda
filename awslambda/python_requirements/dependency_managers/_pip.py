@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import shlex
 import subprocess
 from pathlib import Path
@@ -22,6 +23,7 @@ from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
 
 from ...base_classes import DependencyManager
+from ...utils import Version
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -51,9 +53,14 @@ class Pip(DependencyManager):
     EXECUTABLE: Final[Literal["pip"]] = "pip"
 
     @cached_property
-    def version(self) -> str:
-        """Get pip version."""
-        return self._run_command([self.EXECUTABLE, "--version"])
+    def version(self) -> Version:
+        """pip version."""
+        cmd_output = self._run_command([self.EXECUTABLE, "--version"])
+        match = re.search(r"^pip (?P<version>\S*) from .+$", cmd_output)
+        if not match:
+            LOGGER.warning("unable to parse pip version from output:\n%s", cmd_output)
+            return Version("0.0.0")
+        return Version(match.group("version"))
 
     @classmethod
     def generate_install_command(

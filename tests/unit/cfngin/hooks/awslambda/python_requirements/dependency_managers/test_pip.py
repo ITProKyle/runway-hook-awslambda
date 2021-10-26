@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from pytest import LogCaptureFixture
     from pytest_mock import MockerFixture
 
+MODULE = "awslambda.python_requirements.dependency_managers._pip"
+
 
 class TestPip:
     """Test Pip."""
@@ -148,13 +150,27 @@ class TestPip:
             "review pip's output above to troubleshoot"
         )
 
-    def test_version(self, mocker: MockerFixture, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "cmd_output, expected",
+        [
+            (
+                "pip 21.2.4 from /test/lib/python3.9/site-packages/pip (python 3.9)",
+                "21.2.4",
+            ),
+            ("unexpected output", "0.0.0"),
+        ],
+    )
+    def test_version(
+        self, cmd_output: str, expected: str, mocker: MockerFixture, tmp_path: Path
+    ) -> None:
         """Test version."""
         mock_run_command = mocker.patch.object(
-            Pip, "_run_command", return_value="success"
+            Pip, "_run_command", return_value=cmd_output
         )
-        assert Pip(Mock(), tmp_path).version == mock_run_command.return_value
+        version_cls = mocker.patch(f"{MODULE}.Version", return_value="success")
+        assert Pip(Mock(), tmp_path).version == version_cls.return_value
         mock_run_command.assert_called_once_with([Pip.EXECUTABLE, "--version"])
+        version_cls.assert_called_once_with(expected)
 
 
 @pytest.mark.parametrize(
