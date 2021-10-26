@@ -128,7 +128,7 @@ autodoc_default_options = {
     "members": True,
     "show-inheritance": True,
 }
-autodoc_type_aliases = {}
+autodoc_type_aliases = {"DirectoryPath": "Path", "FilePath": "Path"}
 autodoc_typehints = "signature"
 
 

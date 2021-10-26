@@ -145,7 +145,7 @@ class DockerDependencyInstaller:
                 f"{AWS_SAM_BUILD_IMAGE_PREFIX}{self.project.args.runtime}:latest",
                 force=self.options.pull,
             )
-        raise ValueError("docker.file, docker.image, or runtime required")
+        raise ValueError("docker.file, docker.image, or runtime is required")
 
     @cached_property
     def install_commands(self) -> List[str]:

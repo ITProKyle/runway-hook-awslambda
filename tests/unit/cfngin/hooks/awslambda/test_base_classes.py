@@ -357,6 +357,24 @@ class TestProject:
         args = Mock(runtime="runtime")
         assert Project(args, Mock()).runtime == args.runtime
 
+    def test_runtime_docker(self, mocker: MockerFixture) -> None:
+        """Test runtime with docker."""
+        docker = mocker.patch.object(
+            Project, "docker", Mock(runtime="foo"), create=True
+        )
+        args = Mock(runtime="bar")
+        assert Project(args, Mock()).runtime == docker.runtime
+
+    def test_runtime_raise_value_error(self, mocker: MockerFixture) -> None:
+        """Test runtime raise ValueError."""
+        mocker.patch.object(Project, "docker", None, create=True)
+        with pytest.raises(ValueError) as excinfo:
+            assert not Project(Mock(runtime=None), Mock()).runtime
+        assert (
+            str(excinfo.value)
+            == "runtime could not be determined from arguments or Docker image"
+        )
+
     def test_source_code(self, mocker: MockerFixture) -> None:
         """Test source_code."""
         args = Mock(extend_gitignore=["rule0"], source_code="foo")

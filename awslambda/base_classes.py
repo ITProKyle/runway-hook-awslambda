@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from runway.utils import BaseModel
 
     from .deployment_package import DeploymentPackage
+    from .docker import DockerDependencyInstaller
     from .type_defs import AwsLambdaHookDeployResponseTypedDict
 
 LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
@@ -134,8 +135,27 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 
     @cached_property
     def runtime(self) -> str:
-        """Runtime of the deployment package."""
-        return self.args.runtime
+        """Runtime of the deployment package.
+
+        Value should be a valid Lambda Function runtime
+        (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
+
+        """
+        if self._runtime_from_docker:
+            return self._runtime_from_docker
+        if self.args.runtime:
+            return self.args.runtime
+        raise ValueError(
+            "runtime could not be determined from arguments or Docker image"
+        )
+
+    @cached_property
+    def _runtime_from_docker(self) -> Optional[str]:
+        """Runtime from Docker if class can use Docker."""
+        docker: Optional[DockerDependencyInstaller] = getattr(self, "docker", None)
+        if not docker:
+            return None
+        return docker.runtime
 
     @cached_property
     def source_code(self) -> SourceCode:

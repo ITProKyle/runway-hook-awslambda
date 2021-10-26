@@ -107,12 +107,29 @@ Example
 
   pre_deploy:
     - path: awslambda.PythonFunction
-      data_key: awslambda.example-function
+      data_key: awslambda.example-function-no-docker
       args:
         bucket_name: ${bucket_name}
         docker:
-          image: public.ecr.aws/sam/build-python3.9:latest
-          pull: true
+          disabled: true
+        extend_gitignore:
+          - "*.lock"
+          - '*.md'
+          - '*.toml'
+          - tests/
+        extend_pip_args:
+          - '--proxy'
+          - '[user:passwd@]proxy.server:port'
+        runtime: python3.9
+        source_code: ./src/example-function
+    - path: awslambda.PythonFunction
+      data_key: awslambda.example-function
+      args:
+        bucket_name: ${bucket_name}
+        # docker:  # example of default & inferred values
+        #   disabled: false  # default value
+        #   image: public.ecr.aws/sam/build-python3.9:latest  # inferred from runtime
+        #   pull: true  # default value
         extend_gitignore:
           - "*.lock"
           - '*.md'
@@ -137,7 +154,6 @@ Example
           - '*.md'
           - '*.toml'
           - tests/
-        runtime: python3.9
         source_code: ./src/xmlsec-function
 
   stacks:
