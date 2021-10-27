@@ -16,6 +16,7 @@ from awslambda.base_classes import (
     LayerHook,
     Project,
 )
+from awslambda.exceptions import RuntimeMismatchError
 from awslambda.models.args import AwsLambdaHookArgs
 from awslambda.models.responses import AwsLambdaHookDeployResponse
 
@@ -352,18 +353,23 @@ class TestProject:
         with pytest.raises(NotImplementedError):
             assert Project(Mock(), Mock()).project_type
 
-    def test_runtime(self) -> None:
+    def test_runtime(self, mocker: MockerFixture) -> None:
         """Test runtime."""
-        args = Mock(runtime="runtime")
-        assert Project(args, Mock()).runtime == args.runtime
-
-    def test_runtime_docker(self, mocker: MockerFixture) -> None:
-        """Test runtime with docker."""
         docker = mocker.patch.object(
             Project, "docker", Mock(runtime="foo"), create=True
         )
+        assert Project(Mock(runtime=None), Mock()).runtime == docker.runtime
+
+    def test_runtime_raise_runtime_mismatch_error(self, mocker: MockerFixture) -> None:
+        """Test runtime raise RuntimeMismatchError."""
         args = Mock(runtime="bar")
-        assert Project(args, Mock()).runtime == docker.runtime
+        docker = mocker.patch.object(
+            Project, "docker", Mock(runtime="foo"), create=True
+        )
+        with pytest.raises(RuntimeMismatchError) as excinfo:
+            assert not Project(args, Mock()).runtime
+        assert excinfo.value.detected_runtime == docker.runtime
+        assert excinfo.value.expected_runtime == args.runtime
 
     def test_runtime_raise_value_error(self, mocker: MockerFixture) -> None:
         """Test runtime raise ValueError."""
@@ -372,7 +378,7 @@ class TestProject:
             assert not Project(Mock(runtime=None), Mock()).runtime
         assert (
             str(excinfo.value)
-            == "runtime could not be determined from arguments or Docker image"
+            == "runtime could not be determined from the build system"
         )
 
     def test_source_code(self, mocker: MockerFixture) -> None:

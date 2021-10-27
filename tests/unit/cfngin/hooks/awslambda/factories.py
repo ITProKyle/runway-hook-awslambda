@@ -28,6 +28,11 @@ class MockProject(Project[AwsLambdaHookArgs]):
         return result
 
     @cached_property
+    def runtime(self) -> str:
+        """Runtime of the build system."""
+        return self.args.runtime or "foo0.0"
+
+    @cached_property
     def project_root(self) -> Path:
         """Root directory of the project."""
         return self.args.source_code

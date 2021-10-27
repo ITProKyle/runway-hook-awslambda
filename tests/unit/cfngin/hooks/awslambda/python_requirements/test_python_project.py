@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, List, Sequence
 import pytest
 from mock import Mock, call
 
+from awslambda.exceptions import RuntimeMismatchError
 from awslambda.python_requirements._python_project import (
     PythonProject,
     PythonRequirementsNotFoundError,
@@ -424,6 +425,44 @@ class TestPythonProject:
         assert (
             f"{tmp_path} does not contain a requirements file" in excinfo.value.message
         )
+
+    def test_runtime(self, mocker: MockerFixture) -> None:
+        """Test runtime from docker."""
+        docker = mocker.patch.object(PythonProject, "docker", Mock(runtime="foo"))
+        assert PythonProject(Mock(runtime=None), Mock()).runtime == docker.runtime
+
+    def test_runtime_pip(self, mocker: MockerFixture) -> None:
+        """Test runtime from pip."""
+        mocker.patch.object(PythonProject, "docker", None)
+        mocker.patch.object(
+            PythonProject, "pip", Mock(python_version=Mock(major="3", minor="9"))
+        )
+        assert PythonProject(Mock(runtime=None), Mock()).runtime == "python3.9"
+
+    def test_runtime_raise_runtime_mismatch_error_docker(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test runtime raise RuntimeMismatchError."""
+        args = Mock(runtime="bar")
+        docker = mocker.patch.object(PythonProject, "docker", Mock(runtime="foo"))
+        with pytest.raises(RuntimeMismatchError) as excinfo:
+            assert not PythonProject(args, Mock()).runtime
+        assert excinfo.value.detected_runtime == docker.runtime
+        assert excinfo.value.expected_runtime == args.runtime
+
+    def test_runtime_raise_runtime_mismatch_error_pip(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test runtime raise RuntimeMismatchError."""
+        args = Mock(runtime="bar")
+        mocker.patch.object(PythonProject, "docker", None)
+        mocker.patch.object(
+            PythonProject, "pip", Mock(python_version=Mock(major="3", minor="9"))
+        )
+        with pytest.raises(RuntimeMismatchError) as excinfo:
+            assert not PythonProject(args, Mock()).runtime
+        assert excinfo.value.detected_runtime == "python3.9"
+        assert excinfo.value.expected_runtime == args.runtime
 
     @pytest.mark.parametrize(
         "use_pipenv, use_poetry, update_expected",

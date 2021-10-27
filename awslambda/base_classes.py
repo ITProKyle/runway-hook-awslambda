@@ -21,6 +21,7 @@ from runway.compat import cached_property
 from typing_extensions import Literal
 
 from .constants import BASE_WORK_DIR
+from .exceptions import RuntimeMismatchError
 from .mixins import CliInterfaceMixin
 from .models.args import AwsLambdaHookArgs
 from .models.responses import AwsLambdaHookDeployResponse
@@ -136,19 +137,18 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
 
     @cached_property
     def runtime(self) -> str:
-        """Runtime of the deployment package.
+        """Runtime of the build system.
 
         Value should be a valid Lambda Function runtime
         (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
 
+        This property can be overwritten by subclasses when runtime can be
+        determined through additional means.
+
         """
         if self._runtime_from_docker:
-            return self._runtime_from_docker
-        if self.args.runtime:
-            return self.args.runtime
-        raise ValueError(
-            "runtime could not be determined from arguments or Docker image"
-        )
+            return self._validate_runtime(self._runtime_from_docker)
+        raise ValueError("runtime could not be determined from the build system")
 
     @cached_property
     def _runtime_from_docker(self) -> Optional[str]:
@@ -157,6 +157,24 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         if not docker:
             return None
         return docker.runtime
+
+    def _validate_runtime(self, detected_runtime: str) -> str:
+        """Verify that the detected runtime matches what is explicitly defined.
+
+        This method should be used before returning the detected runtime from
+        the ``.runtime`` property.
+
+        Args:
+            detected_runtime: The runtime detected from the build system.
+
+        Raises:
+            RuntimeMismatchError: The detected runtime does not match what is
+                defined.
+
+        """
+        if self.args.runtime and self.args.runtime != detected_runtime:
+            raise RuntimeMismatchError(self.args.runtime, detected_runtime)
+        return detected_runtime
 
     @cached_property
     def source_code(self) -> SourceCode:
