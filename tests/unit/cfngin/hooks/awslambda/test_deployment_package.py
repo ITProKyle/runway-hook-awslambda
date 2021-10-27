@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 import igittigitt
 import pytest
 from botocore.exceptions import ClientError
-from mock import MagicMock, Mock, call
+from mock import MagicMock, Mock, PropertyMock, call
 from runway._logging import LogLevels
 from runway.core.providers.aws.s3 import Bucket
 
@@ -20,6 +20,7 @@ from awslambda.exceptions import (
     BucketAccessDeniedError,
     BucketNotFoundError,
     RequiredTagNotFoundError,
+    RuntimeMismatchError,
 )
 from awslambda.models.args import AwsLambdaHookArgs
 
@@ -156,8 +157,14 @@ class TestDeploymentPackage:
         with pytest.raises(BucketAccessDeniedError):
             assert DeploymentPackage(project).bucket
 
-    def test_build(self, mocker: MockerFixture, project: ProjectTypeAlias) -> None:
+    def test_build(
+        self,
+        caplog: LogCaptureFixture,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+    ) -> None:
         """Test build."""
+        caplog.set_level(LogLevels.INFO, logger=f"runway.{MODULE}")
         mock_zipfile = MagicMock()
         mock_zipfile.__enter__ = Mock(return_value=mock_zipfile)
         mock_zipfile_class = mocker.patch(
@@ -183,11 +190,16 @@ class TestDeploymentPackage:
         mock_build_zip_dependencies.assert_called_once_with(mock_zipfile)
         mock_build_zip_source_code.assert_called_once_with(mock_zipfile)
         mock_build_fix_file_permissions.assert_called_once_with(mock_zipfile)
+        assert f"building {obj.archive_file.name} ({obj.runtime})..." in caplog.messages
 
     def test_build_file_exists(
-        self, mocker: MockerFixture, project: ProjectTypeAlias
+        self,
+        caplog: LogCaptureFixture,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
     ) -> None:
         """Test build."""
+        caplog.set_level(LogLevels.INFO, logger=f"runway.{MODULE}")
         mock_zipfile_class = mocker.patch(
             "zipfile.ZipFile",
             return_value=MagicMock(),
@@ -196,6 +208,33 @@ class TestDeploymentPackage:
         obj.archive_file.touch()
         assert obj.build() == obj.archive_file
         mock_zipfile_class.assert_not_called()
+        assert (
+            f"build skipped; {obj.archive_file.name} already exists" in caplog.messages
+        )
+
+    def test_build_raise_runtime_mismatch_error(
+        self, mocker: MockerFixture, project: ProjectTypeAlias
+    ) -> None:
+        """Test build raise RuntimeMismatchError."""
+        mocker.patch.object(
+            DeploymentPackage,
+            "runtime",
+            PropertyMock(side_effect=RuntimeMismatchError("", "")),
+        )
+        mock_build_zip_dependencies = mocker.patch.object(
+            DeploymentPackage, "_build_zip_dependencies"
+        )
+        mock_build_zip_source_code = mocker.patch.object(
+            DeploymentPackage, "_build_zip_source_code"
+        )
+        mock_build_fix_file_permissions = mocker.patch.object(
+            DeploymentPackage, "_build_fix_file_permissions"
+        )
+        with pytest.raises(RuntimeMismatchError):
+            DeploymentPackage(project).build()
+        mock_build_zip_dependencies.assert_not_called()
+        mock_build_zip_source_code.assert_not_called()
+        mock_build_fix_file_permissions.assert_not_called()
 
     @pytest.mark.parametrize("url_encoded", [False, True])
     def test_build_tag_set(

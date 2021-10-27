@@ -146,6 +146,13 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """Runtime of the Lambda Function
     (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
 
+    This, ``docker.file``, or ``docker.image`` must be provided.
+    If ``docker.disabled``, this field is required.
+
+    When provided, the runtime available on the build system (Docker container
+    or localhost) will be checked against this value. If they do not match,
+    an error will be raised.
+
     """
 
     source_code: DirectoryPath

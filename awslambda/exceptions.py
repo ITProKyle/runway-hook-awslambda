@@ -116,3 +116,29 @@ class RequiredTagNotFoundError(CfnginError):  # TODO should this be a RunwayErro
         self.tag_key = tag_key
         self.message = f"required tag '{tag_key}' not found for {resource}"
         super().__init__()
+
+
+class RuntimeMismatchError(CfnginError):
+    """Required runtime does not match the detected runtime."""
+
+    detected_runtime: str
+    """Runtime detected on the build system."""
+
+    expected_runtime: str
+    """Explicitly defined runtime that was expected."""
+
+    def __init__(self, expected_runtime: str, detected_runtime: str) -> None:
+        """Instantiate class.
+
+        Args:
+            expected_runtime: Explicitly defined runtime that was expected.
+            detected_runtime: Runtime detected on the build system.
+
+        """
+        self.detected_runtime = detected_runtime
+        self.expected_runtime = expected_runtime
+        self.message = (
+            f"{detected_runtime} runtime determined from the build system"
+            f" does not match the expected {expected_runtime} runtime"
+        )
+        super().__init__()

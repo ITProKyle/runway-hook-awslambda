@@ -192,7 +192,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             LOGGER.info("build skipped; %s already exists", self.archive_file.name)
             return self.archive_file
 
-        LOGGER.info("building %s...", self.archive_file.name)
+        # we need to use runtime BEFORE the build process starts to allow runtime
+        # errors to be raised early.
+        LOGGER.info("building %s (%s)...", self.archive_file.name, self.runtime)
         with zipfile.ZipFile(
             self.archive_file, "w", zipfile.ZIP_DEFLATED
         ) as archive_file:

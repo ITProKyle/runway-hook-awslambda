@@ -21,11 +21,15 @@ class MockProject(Project[AwsLambdaHookArgs]):
         """Directory being used to build deployment package."""
         result = (
             self.source_code
-            / self.runtime
             / f"{self.source_code.root_directory.name}.{self.source_code.md5_hash}"
         )
         result.mkdir(exist_ok=True, parents=True)
         return result
+
+    @cached_property
+    def runtime(self) -> str:
+        """Runtime of the build system."""
+        return self.args.runtime or "foo0.0"
 
     @cached_property
     def project_root(self) -> Path:

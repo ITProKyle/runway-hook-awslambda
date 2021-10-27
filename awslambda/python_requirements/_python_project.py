@@ -92,6 +92,20 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         return tuple(path for path in config_files if path.exists())
 
     @cached_property
+    def runtime(self) -> str:
+        """Runtime of the build system.
+
+        Value should be a valid Lambda Function runtime
+        (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
+
+        """
+        if self._runtime_from_docker:
+            return self._validate_runtime(self._runtime_from_docker)
+        return self._validate_runtime(
+            f"python{self.pip.python_version.major}.{self.pip.python_version.minor}"
+        )
+
+    @cached_property
     def pip(self) -> Pip:
         """Pip dependency manager."""
         return Pip(self.ctx, self.project_root)
