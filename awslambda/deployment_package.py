@@ -465,7 +465,8 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         """
         if not self.head or "VersionId" not in self.head:
             return None
-        return self.head["VersionId"]
+        version_id = self.head["VersionId"]
+        return version_id if version_id != "null" else None
 
     @cached_property
     def runtime(self) -> str:
