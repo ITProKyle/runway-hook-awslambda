@@ -163,7 +163,11 @@ class AwsLambdaLookup(LookupHandler):
 
         """
         kls = load_object_from_string(hook_def.path)
-        if not hasattr(kls, "__subclasscheck__") or not issubclass(kls, AwsLambdaHook):
+        if (
+            not isinstance(kls, type)
+            or not hasattr(kls, "__subclasscheck__")
+            or not issubclass(kls, AwsLambdaHook)
+        ):
             raise TypeError(
                 f"hook path {hook_def.path} for hook with data_key {hook_def.data_key} "
                 "must be a subclass of AwsLambdaHook to use this lookup"

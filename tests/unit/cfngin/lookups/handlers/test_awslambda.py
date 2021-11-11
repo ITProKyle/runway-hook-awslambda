@@ -193,6 +193,7 @@ class TestAwsLambdaLookup:
         load_object_from_string = mocker.patch(
             f"{MODULE}.load_object_from_string", return_value=hook_class
         )
+        mock_isinstance = mocker.patch(f"{MODULE}.isinstance", return_value=True)
         mock_hasattr = mocker.patch(f"{MODULE}.hasattr", return_value=True)
         mock_issubclass = mocker.patch(f"{MODULE}.issubclass", return_value=True)
         assert (
@@ -200,6 +201,7 @@ class TestAwsLambdaLookup:
             == hook_class.return_value
         )
         load_object_from_string.assert_called_once_with(hook_def.path)
+        mock_isinstance.assert_called_once_with(hook_class, type)
         mock_hasattr.assert_called_once_with(hook_class, "__subclasscheck__")
         mock_issubclass.assert_called_once_with(hook_class, AwsLambdaHook)
         hook_class.assert_called_once_with(context, **hook_def.args)
