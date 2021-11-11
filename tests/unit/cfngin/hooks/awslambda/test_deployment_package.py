@@ -19,6 +19,7 @@ from awslambda.deployment_package import DeploymentPackage, DeploymentPackageS3O
 from awslambda.exceptions import (
     BucketAccessDeniedError,
     BucketNotFoundError,
+    DeploymentPackageEmptyError,
     RequiredTagNotFoundError,
     RuntimeMismatchError,
 )
@@ -171,12 +172,15 @@ class TestDeploymentPackage:
             "zipfile.ZipFile",
             return_value=mock_zipfile,
         )
+
+        def _write_zip(package: DeploymentPackage[Any], archive_file: Mock) -> None:
+            package.archive_file.write_text("test" * 8)
+            assert archive_file is mock_zipfile
+
         mock_build_zip_dependencies = mocker.patch.object(
             DeploymentPackage, "_build_zip_dependencies"
         )
-        mock_build_zip_source_code = mocker.patch.object(
-            DeploymentPackage, "_build_zip_source_code"
-        )
+        mocker.patch.object(DeploymentPackage, "_build_zip_source_code", _write_zip)
         mock_build_fix_file_permissions = mocker.patch.object(
             DeploymentPackage, "_build_fix_file_permissions"
         )
@@ -188,9 +192,31 @@ class TestDeploymentPackage:
         )
         mock_zipfile.__enter__.assert_called_once_with()
         mock_build_zip_dependencies.assert_called_once_with(mock_zipfile)
-        mock_build_zip_source_code.assert_called_once_with(mock_zipfile)
         mock_build_fix_file_permissions.assert_called_once_with(mock_zipfile)
         assert f"building {obj.archive_file.name} ({obj.runtime})..." in caplog.messages
+
+    def test_build_file_empty_after_build(
+        self, mocker: MockerFixture, project: ProjectTypeAlias
+    ) -> None:
+        """Test build archive_file empty after building."""
+        archive_file = project.build_directory / "foobar.zip"
+        mocker.patch.object(DeploymentPackage, "archive_file", archive_file)
+
+        def _write_zip(package: DeploymentPackage[Any], *_: Any) -> None:
+            package.archive_file.touch()
+
+        mock_build_zip_dependencies = mocker.patch.object(
+            DeploymentPackage, "_build_zip_dependencies"
+        )
+        mocker.patch.object(DeploymentPackage, "_build_zip_source_code", _write_zip)
+        mock_build_fix_file_permissions = mocker.patch.object(
+            DeploymentPackage, "_build_fix_file_permissions"
+        )
+
+        with pytest.raises(DeploymentPackageEmptyError):
+            DeploymentPackage(project).build()
+        mock_build_zip_dependencies.assert_called_once()
+        mock_build_fix_file_permissions.assert_called_once()
 
     def test_build_file_exists(
         self,
@@ -205,7 +231,7 @@ class TestDeploymentPackage:
             return_value=MagicMock(),
         )
         obj = DeploymentPackage(project)
-        obj.archive_file.touch()
+        obj.archive_file.write_text("test" * 8)
         assert obj.build() == obj.archive_file
         mock_zipfile_class.assert_not_called()
         assert (

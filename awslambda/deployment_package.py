@@ -25,12 +25,13 @@ from urllib.parse import urlencode
 from runway.compat import cached_property
 from runway.core.providers.aws.s3 import Bucket
 from runway.utils import FileHash
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 
 from .base_classes import Project
 from .exceptions import (
     BucketAccessDeniedError,
     BucketNotFoundError,
+    DeploymentPackageEmptyError,
     RequiredTagNotFoundError,
 )
 from .models.args import AwsLambdaHookArgs
@@ -55,13 +56,6 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
     only call the methods defined within this parent class. This ensures
     compatability with the S3 object class that can be returned.
 
-    Attributes:
-        META_TAGS: Mapping of metadata to the tag-key is is stored in on
-            the S3 object.
-        ZIPFILE_PERMISSION_MASK: Mast to retrieve unix file permissions
-            from the external attributes property of a ``zipfile.ZipInfo``.
-        project: Project that is being built into a deployment package.
-
     """
 
     META_TAGS: ClassVar[Dict[str, str]] = {
@@ -70,11 +64,21 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         "runtime": "runway.cfngin:awslambda.runtime",
         "source_code.hash": "runway.cfngin:awslambda.source_code.hash",
     }
+    """Mapping of metadata to the tag-key is is stored in on the S3 object."""
+
+    SIZE_EOCD: Final[Literal[22]] = 22
+    """Size of a zip file's End of Central Directory Record (empty zip)."""
+
     ZIPFILE_PERMISSION_MASK: ClassVar[int] = (
         stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
     ) << 16
+    """Mask to retrieve unix file permissions from the external attributes
+    property of a ``zipfile.ZipInfo``.
+    """
 
     project: _ProjectTypeVar
+    """Project that is being built into a deployment package."""
+
     _put_object_response: Optional[PutObjectOutputTypeDef] = None
 
     def __init__(self, project: _ProjectTypeVar) -> None:
@@ -188,7 +192,7 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
 
     def build(self) -> Path:
         """Build the deployment package."""
-        if self.exists:
+        if self.exists and self.archive_file.stat().st_size > self.SIZE_EOCD:
             LOGGER.info("build skipped; %s already exists", self.archive_file.name)
             return self.archive_file
 
@@ -201,6 +205,9 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             self._build_zip_dependencies(archive_file)
             self._build_zip_source_code(archive_file)
             self._build_fix_file_permissions(archive_file)
+
+        if self.archive_file.stat().st_size <= self.SIZE_EOCD:
+            raise DeploymentPackageEmptyError(self.archive_file)
 
         # clear cached properties so they can recalculate;
         # handles cached property not being resolved yet

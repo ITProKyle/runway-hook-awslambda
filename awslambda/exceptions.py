@@ -7,6 +7,8 @@ from runway.cfngin.exceptions import CfnginError
 from runway.exceptions import RunwayError
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from runway.core.providers.aws.s3 import Bucket
 
 
@@ -43,6 +45,32 @@ class BucketNotFoundError(CfnginError):  # TODO should this be a RunwayError?
         """
         self.bucket_name = bucket.name
         self.message = f"bucket {bucket.name} not found"
+        super().__init__()
+
+
+class DeploymentPackageEmptyError(CfnginError):
+    """Deployment package is empty.
+
+    This can be caused by an incorrect source code directory or a gitignore rule
+    unintentionally ignoring all source code.
+
+    Any empty deployment package is determined by checking the size of the
+    archive file. If the size is <=22 (the size a zip file End of Central
+    Directory Record) it has no contents.
+
+    """
+
+    archive_file: Path
+    """The deployment package archive file."""
+
+    def __init__(self, archive_file: Path) -> None:
+        """Instantiate class.
+
+        Args:
+            archive_file: The empty archive file.
+
+        """
+        self.message = f"{archive_file.name} contains no files"
         super().__init__()
 
 
