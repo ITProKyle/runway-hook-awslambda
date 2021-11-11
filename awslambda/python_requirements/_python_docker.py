@@ -44,14 +44,16 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller):
     @cached_property
     def bind_mounts(self) -> List[Mount]:
         """Bind mounts that will be used by the container."""
-        return [
-            *super().bind_mounts,
-            Mount(
-                target=f"/var/task/{self.project.requirements_txt.name}",
-                source=str(self.project.requirements_txt),
-                type="bind",
-            ),
-        ]
+        mounts = [*super().bind_mounts]
+        if self.project.requirements_txt:
+            mounts.append(
+                Mount(
+                    target=f"/var/task/{self.project.requirements_txt.name}",
+                    source=str(self.project.requirements_txt),
+                    type="bind",
+                )
+            )
+        return mounts
 
     @cached_property
     def environmet_variables(self) -> Dict[str, str]:
@@ -70,18 +72,20 @@ class PythonDockerDependencyInstaller(DockerDependencyInstaller):
     @cached_property
     def install_commands(self) -> List[str]:
         """Commands to run to install dependencies."""
-        return [
-            shlex.join(
-                self.project.pip.generate_install_command(
-                    cache_dir=self.CACHE_DIR if self.project.cache_dir else None,
-                    no_cache_dir=not self.project.args.use_cache,
-                    no_deps=bool(self.project.poetry or self.project.pipenv),
-                    requirements=f"/var/task/{self.project.requirements_txt.name}",
-                    target=self.DEPENDENCY_DIR,
+        if self.project.requirements_txt:
+            return [
+                shlex.join(
+                    self.project.pip.generate_install_command(
+                        cache_dir=self.CACHE_DIR if self.project.cache_dir else None,
+                        no_cache_dir=not self.project.args.use_cache,
+                        no_deps=bool(self.project.poetry or self.project.pipenv),
+                        requirements=f"/var/task/{self.project.requirements_txt.name}",
+                        target=self.DEPENDENCY_DIR,
+                    )
+                    + (self.project.args.extend_pip_args or [])
                 )
-                + (self.project.args.extend_pip_args or [])
-            )
-        ]
+            ]
+        return []
 
     @cached_property
     def python_version(self) -> Optional[Version]:

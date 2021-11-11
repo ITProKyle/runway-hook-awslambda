@@ -6,10 +6,10 @@ This hook creates deployment packages for Python Lambda Functions, uploads them 
 
 The return value can be retrieved using the :ref:`hook_data Lookup <hook_data lookup>` or by interacting with the :class:`~runway.context.CfnginContext` object passed to the |Blueprint|.
 
-To use this hook, it must be able to find project metadata files.
+To use this hook to install dependencies, it must be able to find project metadata files.
 This can include ``Pipefile`` & ``Pipfile.lock`` files (pipenv), a ``pyproject.toml`` & ``poetry.lock`` files (poetry), or a ``requirements.txt`` file (pip).
 The project metadata files can exist either in the source code directory (value of ``source_code`` arg) or in the same directory as the CFNgin configuration file.
-These files are required to defined the dependencies that will be included in the deployment package.
+If metadata files are not found, dependencies will not be included in the deployment package.
 
 This hook will always use Docker to install/compile dependencies unless explicitly configured not to.
 It is recommended to always use Docker to ensure a clean and consistent build.

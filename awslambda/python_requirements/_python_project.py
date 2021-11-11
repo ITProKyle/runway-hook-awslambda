@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import logging
 import shutil
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, ClassVar, Optional, Set, Tuple
 
-from runway.cfngin.exceptions import CfnginError
 from runway.compat import cached_property
 from typing_extensions import Literal
 
@@ -27,36 +26,7 @@ from .dependency_managers import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from _typeshed import StrPath
-
-    from ..source_code import SourceCode
-
 LOGGER = logging.getLogger(f"runway.{__name__}")
-
-
-class PythonRequirementsNotFoundError(CfnginError):
-    """Python requirements file not found.
-
-    A python requirements file (e.g. ``requirements.txt``, ``pyproject.toml``)
-    is required.
-
-    """
-
-    def __init__(
-        self, source_code: Union[SourceCode, StrPath], *args: Any, **kwargs: Any
-    ) -> None:
-        """Instantiace class.
-
-        Args:
-            source_code: Source code that was checked for a python requirements
-                file.
-
-        """
-        self.message = (
-            f"{source_code} does not contain a requirements file "
-            "(e.g. requirements.txt, pyproject.toml)"
-        )
-        super().__init__()
 
 
 class PythonProject(Project[PythonFunctionHookArgs]):
@@ -164,7 +134,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         return "pip"
 
     @cached_property
-    def requirements_txt(self) -> Path:
+    def requirements_txt(self) -> Optional[Path]:
         """Dependency file for the project."""
         if self.poetry:  # prioritize poetry
             return self.poetry.export(output=self.tmp_requirements_txt)
@@ -173,7 +143,7 @@ class PythonProject(Project[PythonFunctionHookArgs]):
         requirements_txt = self.project_root / "requirements.txt"
         if is_pip_project(self.project_root, file_name=requirements_txt.name):
             return requirements_txt
-        raise PythonRequirementsNotFoundError(self.project_root)
+        return None
 
     @cached_property
     def supported_metadata_files(self) -> Set[str]:
@@ -210,18 +180,21 @@ class PythonProject(Project[PythonFunctionHookArgs]):
 
     def install_dependencies(self) -> None:
         """Install project dependencies."""
-        LOGGER.debug("installing dependencies to %s...", self.dependency_directory)
-        if self.docker:
-            self.docker.install()
-        else:
-            self.pip.install(
-                cache_dir=self.args.cache_dir,
-                extend_args=self.args.extend_pip_args,
-                no_cache_dir=not self.args.use_cache,
-                no_deps=bool(self.poetry or self.pipenv),
-                requirements=self.requirements_txt,
-                target=self.dependency_directory,
+        if self.requirements_txt:
+            LOGGER.debug("installing dependencies to %s...", self.dependency_directory)
+            if self.docker:
+                self.docker.install()
+            else:
+                self.pip.install(
+                    cache_dir=self.args.cache_dir,
+                    extend_args=self.args.extend_pip_args,
+                    no_cache_dir=not self.args.use_cache,
+                    no_deps=bool(self.poetry or self.pipenv),
+                    requirements=self.requirements_txt,
+                    target=self.dependency_directory,
+                )
+            LOGGER.debug(
+                "dependencies successfully installed to %s", self.dependency_directory
             )
-        LOGGER.debug(
-            "dependencies successfully installed to %s", self.dependency_directory
-        )
+        else:
+            LOGGER.info("skipped installing dependencies; none found")

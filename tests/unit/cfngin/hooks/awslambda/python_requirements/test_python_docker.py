@@ -85,6 +85,15 @@ class TestPythonDockerDependencyInstaller:
             mock_generate_install_command.return_value + args.extend_pip_args
         )
 
+    def test_install_commands_no_requirements(self) -> None:
+        """Test install_commands no requirements."""
+        assert (
+            PythonDockerDependencyInstaller(
+                Mock(requirements_txt=None), client=Mock()
+            ).install_commands
+            == []
+        )
+
     def test_python_version(self, mocker: MockerFixture) -> None:
         """Test python_version."""
         version = "3.10.0"
