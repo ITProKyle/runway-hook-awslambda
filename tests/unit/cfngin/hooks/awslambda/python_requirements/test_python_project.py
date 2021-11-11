@@ -9,10 +9,7 @@ import pytest
 from mock import Mock, call
 
 from awslambda.exceptions import RuntimeMismatchError
-from awslambda.python_requirements._python_project import (
-    PythonProject,
-    PythonRequirementsNotFoundError,
-)
+from awslambda.python_requirements._python_project import PythonProject
 from awslambda.python_requirements.dependency_managers._pip import (
     Pip,
     PipInstallFailedError,
@@ -163,9 +160,10 @@ class TestPythonProject:
         mocker.patch.object(
             PythonProject, "dependency_directory", "dependency_directory"
         )
+        mocker.patch.object(PythonProject, "requirements_txt", "requirements.txt")
         assert not PythonProject(Mock(), Mock()).install_dependencies()
         mock_docker.install.assert_called_once_with()
-        mock_pip.assert_not_called()
+        mock_pip.install.assert_not_called()
 
     def test_install_dependencies_does_not_catch_errors(
         self, mocker: MockerFixture
@@ -194,6 +192,22 @@ class TestPythonProject:
             requirements=requirements_txt,
             target=dependency_directory,
         )
+
+    def test_install_dependencies_skip(
+        self, caplog: LogCaptureFixture, mocker: MockerFixture
+    ) -> None:
+        """Test install_dependencies skip because no dependencies."""
+        caplog.set_level(logging.INFO, logger=f"runway.{MODULE}")
+        mock_docker = mocker.patch.object(PythonProject, "docker")
+        mock_pip = mocker.patch.object(PythonProject, "pip")
+        mocker.patch.object(
+            PythonProject, "dependency_directory", "dependency_directory"
+        )
+        mocker.patch.object(PythonProject, "requirements_txt", None)
+        assert not PythonProject(Mock(), Mock()).install_dependencies()
+        mock_docker.install.assert_not_called()
+        mock_pip.install.assert_not_called()
+        assert "skipped installing dependencies; none found" in caplog.messages
 
     @pytest.mark.parametrize(
         "project_type, expected_files",
@@ -379,6 +393,19 @@ class TestPythonProject:
         assert PythonProject(Mock(), Mock()).requirements_txt == expected
         mock_is_pip_project.assert_called_once_with(tmp_path, file_name=expected.name)
 
+    def test_requirements_txt_none(self, mocker: MockerFixture, tmp_path: Path) -> None:
+        """Test requirements_txt is None."""
+        mock_is_pip_project = mocker.patch(
+            f"{MODULE}.is_pip_project", return_value=False
+        )
+        mocker.patch.object(PythonProject, "pipenv", None)
+        mocker.patch.object(PythonProject, "poetry", None)
+        mocker.patch.object(PythonProject, "project_root", tmp_path)
+        assert not PythonProject(Mock(), Mock()).requirements_txt
+        mock_is_pip_project.assert_called_once_with(
+            tmp_path, file_name="requirements.txt"
+        )
+
     def test_requirements_txt_pipenv(self, mocker: MockerFixture) -> None:
         """Test requirements_txt."""
         expected = "foo.txt"
@@ -406,25 +433,6 @@ class TestPythonProject:
         mocker.patch.object(PythonProject, "project_root")
         assert PythonProject(Mock(), Mock()).requirements_txt == expected
         poetry.export.assert_called_once_with(output=tmp_requirements_txt)
-
-    def test_requirements_txt_raise_python_requirements_not_found(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
-        """Test requirements_txt raise PythonRequirementsNotFoundError."""
-        mock_is_pip_project = mocker.patch(
-            f"{MODULE}.is_pip_project", return_value=False
-        )
-        mocker.patch.object(PythonProject, "pipenv", None)
-        mocker.patch.object(PythonProject, "poetry", None)
-        mocker.patch.object(PythonProject, "project_root", tmp_path)
-        with pytest.raises(PythonRequirementsNotFoundError) as excinfo:
-            assert PythonProject(Mock(), Mock()).requirements_txt
-        mock_is_pip_project.assert_called_once_with(
-            tmp_path, file_name="requirements.txt"
-        )
-        assert (
-            f"{tmp_path} does not contain a requirements file" in excinfo.value.message
-        )
 
     def test_runtime(self, mocker: MockerFixture) -> None:
         """Test runtime from docker."""
