@@ -22,6 +22,7 @@ from awslambda.exceptions import (
     DeploymentPackageEmptyError,
     RequiredTagNotFoundError,
     RuntimeMismatchError,
+    S3ObjectDoesNotExistError,
 )
 from awslambda.models.args import AwsLambdaHookArgs
 
@@ -184,6 +185,9 @@ class TestDeploymentPackage:
         mock_build_fix_file_permissions = mocker.patch.object(
             DeploymentPackage, "_build_fix_file_permissions"
         )
+        mock_del_cached_property = mocker.patch.object(
+            DeploymentPackage, "_del_cached_property"
+        )
 
         obj = DeploymentPackage(project)
         assert obj.build() == obj.archive_file
@@ -193,6 +197,9 @@ class TestDeploymentPackage:
         mock_zipfile.__enter__.assert_called_once_with()
         mock_build_zip_dependencies.assert_called_once_with(mock_zipfile)
         mock_build_fix_file_permissions.assert_called_once_with(mock_zipfile)
+        mock_del_cached_property.assert_called_once_with(
+            "code_sha256", "exists", "md5_checksum"
+        )
         assert f"building {obj.archive_file.name} ({obj.runtime})..." in caplog.messages
 
     def test_build_file_empty_after_build(
@@ -321,6 +328,23 @@ class TestDeploymentPackage:
         mock_b64encode.assert_called_once_with(file_hash.digest)
 
     @pytest.mark.parametrize("should_exist", [False, True])
+    def test_delete(
+        self, mocker: MockerFixture, project: ProjectTypeAlias, should_exist: bool
+    ) -> None:
+        """Test delete."""
+        mock_del_cached_property = mocker.patch.object(
+            DeploymentPackage, "_del_cached_property"
+        )
+        obj = DeploymentPackage(project)
+        if should_exist:
+            obj.archive_file.touch()
+        assert not obj.delete()
+        assert not obj.archive_file.exists()
+        mock_del_cached_property.assert_called_once_with(
+            "code_sha256", "exists", "md5_checksum", "object_version_id"
+        )
+
+    @pytest.mark.parametrize("should_exist", [False, True])
     def test_exists(self, project: ProjectTypeAlias, should_exist: bool) -> None:
         """Test exists."""
         obj = DeploymentPackage(project)
@@ -336,8 +360,8 @@ class TestDeploymentPackage:
     def test_init(
         self, exists_in_s3: bool, mocker: MockerFixture, project: ProjectTypeAlias
     ) -> None:
-        """Test init."""
-        s3_obj = Mock(exists=exists_in_s3)
+        """Test init where runtime always matches."""
+        s3_obj = Mock(exists=exists_in_s3, runtime=project.runtime)
         s3_obj_class = mocker.patch(
             f"{MODULE}.DeploymentPackageS3Object", return_value=s3_obj
         )
@@ -347,6 +371,27 @@ class TestDeploymentPackage:
         else:
             assert isinstance(DeploymentPackage.init(project), DeploymentPackage)
         s3_obj_class.assert_called_once_with(project)
+
+    def test_init_runtime_change(
+        self,
+        caplog: LogCaptureFixture,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+    ) -> None:
+        """Test init where runtime has changed and object exists in S3."""
+        caplog.set_level(LogLevels.WARNING, logger=f"runway.{MODULE}")
+        s3_obj = Mock(exists=True, runtime="change")
+        s3_obj_class = mocker.patch(
+            f"{MODULE}.DeploymentPackageS3Object", return_value=s3_obj
+        )
+        assert isinstance(DeploymentPackage.init(project), DeploymentPackage)
+        s3_obj_class.assert_called_once_with(project)
+        s3_obj.delete.assert_called_once_with()
+        assert (
+            f"runtime of deployment package found in S3 ({s3_obj.runtime}) "
+            f"does not match requirement ({project.runtime}); deleting & "
+            "recreating..." in caplog.messages
+        )
 
     def test_iterate_dependency_directory(
         self, mocker: MockerFixture, project: ProjectTypeAlias
@@ -438,6 +483,9 @@ class TestDeploymentPackage:
             "build_tag_set",
             return_value="foo=bar",
         )
+        mock_del_cached_property = mocker.patch.object(
+            DeploymentPackage, "_del_cached_property"
+        )
         mock_guess_type = mocker.patch(
             "mimetypes.guess_type", return_value=("application/zip", None)
         )
@@ -488,20 +536,40 @@ class TestDeploymentPackage:
                 mock_build.assert_not_called()
             mock_guess_type.assert_called_once_with(obj.archive_file)
             mock_build_tag_set.assert_called_once_with()
+            mock_del_cached_property.assert_called_once_with("object_version_id")
         stubber.assert_no_pending_responses()
 
 
 class TestDeploymentPackageS3Object:
     """Test DeploymentPackageS3Object."""
 
-    def test_build(self, caplog: LogCaptureFixture, project: ProjectTypeAlias) -> None:
-        """Test build."""
+    def test_build_exists(
+        self,
+        caplog: LogCaptureFixture,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+    ) -> None:
+        """Test build object exists."""
         caplog.set_level(LogLevels.INFO, logger=f"runway.{MODULE}")
+        mocker.patch.object(DeploymentPackageS3Object, "exists", True)
         obj = DeploymentPackageS3Object(project)
         assert obj.build() == obj.archive_file
         assert (
             f"build skipped; {obj.archive_file.name} already exists" in caplog.messages
         )
+
+    def test_build_not_exists(
+        self, mocker: MockerFixture, project: ProjectTypeAlias
+    ) -> None:
+        """Test build object doesn't exist raises S3ObjectDoesNotExistError."""
+        mocker.patch.object(DeploymentPackageS3Object, "exists", False)
+        bucket = Bucket(project.ctx, project.args.bucket_name)
+        mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        obj = DeploymentPackageS3Object(project)
+        with pytest.raises(S3ObjectDoesNotExistError) as excinfo:
+            obj.build()
+        assert excinfo.value.bucket == bucket.name
+        assert excinfo.value.key == obj.object_key
 
     def test_code_sha256(
         self, mocker: MockerFixture, project: ProjectTypeAlias
@@ -534,6 +602,46 @@ class TestDeploymentPackageS3Object:
         assert (
             excinfo.value.tag_key == DeploymentPackageS3Object.META_TAGS["code_sha256"]
         )
+
+    @pytest.mark.parametrize("should_exist", [False, True])
+    def test_delete(
+        self, mocker: MockerFixture, project: ProjectTypeAlias, should_exist: bool
+    ) -> None:
+        """Test delete."""
+        mocker.patch.object(
+            DeploymentPackageS3Object,
+            "bucket",
+            Bucket(project.ctx, project.args.bucket_name),
+        )
+        mocker.patch.object(DeploymentPackageS3Object, "exists", should_exist)
+        mock_del_cached_property = mocker.patch.object(
+            DeploymentPackageS3Object, "_del_cached_property"
+        )
+        object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
+
+        obj = DeploymentPackageS3Object(project)
+        stubber = cast("Stubber", project.ctx.add_stubber("s3"))  # type: ignore
+        if should_exist:
+            stubber.add_response(
+                "delete_object",
+                {},
+                {"Bucket": project.args.bucket_name, "Key": object_key},
+            )
+            obj.archive_file.touch()
+        with stubber:
+            obj.delete()
+        stubber.assert_no_pending_responses()
+        if should_exist:
+            mock_del_cached_property.assert_called_once_with(
+                "code_sha256",
+                "exists",
+                "md5_checksum",
+                "object_tags",
+                "object_version_id",
+                "runtime",
+            )
+        else:
+            mock_del_cached_property.assert_not_called()
 
     @pytest.mark.parametrize(
         "head, expected",
@@ -742,24 +850,34 @@ class TestDeploymentPackageS3Object:
         assert excinfo.value.tag_key == DeploymentPackageS3Object.META_TAGS["runtime"]
 
     @pytest.mark.parametrize("build", [False, True])
-    def test_upload(
+    def test_upload_exists(
         self,
         build: bool,
         caplog: LogCaptureFixture,
         mocker: MockerFixture,
         project: ProjectTypeAlias,
     ) -> None:
-        """Test upload."""
+        """Test upload object exists."""
         caplog.set_level(LogLevels.INFO, logger=f"runway.{MODULE}")
+        mocker.patch.object(DeploymentPackageS3Object, "exists", True)
         bucket = Bucket(project.ctx, project.args.bucket_name)
         object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
-        mocker.patch.object(
-            DeploymentPackageS3Object,
-            "bucket",
-            Bucket(project.ctx, project.args.bucket_name),
-        )
+        mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
         assert not DeploymentPackageS3Object(project).upload(build=build)
         assert (
             f"upload skipped; {bucket.format_bucket_path_uri(key=object_key)} already exists"
             in caplog.messages
         )
+
+    def test_upload_not_exists(
+        self, mocker: MockerFixture, project: ProjectTypeAlias
+    ) -> None:
+        """Test upload object doesn't exist raises S3ObjectDoesNotExistError."""
+        mocker.patch.object(DeploymentPackageS3Object, "exists", False)
+        bucket = Bucket(project.ctx, project.args.bucket_name)
+        mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        obj = DeploymentPackageS3Object(project)
+        with pytest.raises(S3ObjectDoesNotExistError) as excinfo:
+            obj.upload()
+        assert excinfo.value.bucket == bucket.name
+        assert excinfo.value.key == obj.object_key

@@ -153,6 +153,10 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     or localhost) will be checked against this value. If they do not match,
     an error will be raised.
 
+    If the defined or detected runtime ever changes so that it no longer
+    matches the deployment package in S3, the deployment package in S3 will be
+    deleted and a new one will be built and uploaded.
+
     """
 
     source_code: DirectoryPath
