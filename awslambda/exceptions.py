@@ -70,6 +70,7 @@ class DeploymentPackageEmptyError(CfnginError):
             archive_file: The empty archive file.
 
         """
+        self.archive_file = archive_file
         self.message = f"{archive_file.name} contains no files"
         super().__init__()
 
@@ -169,4 +170,26 @@ class RuntimeMismatchError(CfnginError):
             f"{detected_runtime} runtime determined from the build system"
             f" does not match the expected {expected_runtime} runtime"
         )
+        super().__init__()
+
+
+class S3ObjectDoesNotExistError(CfnginError):  # TODO should this be a RunwayError?
+    """Required S3 object does not exist."""
+
+    bucket: str
+    key: str
+    uri: str
+
+    def __init__(self, bucket: str, key: str) -> None:
+        """Instantiate class.
+
+        Args:
+            bucket: Name of the S3 bucket.
+            key: S3 object key.
+
+        """
+        self.bucket = bucket
+        self.key = key
+        self.uri = f"s3://{bucket}/{key.lstrip('/')}"
+        self.message = f"S3 object does not exist at path {self.uri}"
         super().__init__()

@@ -7,7 +7,6 @@ import logging
 import mimetypes
 import stat
 import zipfile
-from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -33,7 +32,9 @@ from .exceptions import (
     BucketNotFoundError,
     DeploymentPackageEmptyError,
     RequiredTagNotFoundError,
+    S3ObjectDoesNotExistError,
 )
+from .mixins import DelCachedPropMixin
 from .models.args import AwsLambdaHookArgs
 
 if TYPE_CHECKING:
@@ -49,7 +50,7 @@ LOGGER = cast("RunwayLogger", logging.getLogger(f"runway.{__name__}"))
 _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
 
 
-class DeploymentPackage(Generic[_ProjectTypeVar]):
+class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
     """AWS Lambda Deployment Package.
 
     When interacting with subclass of this instance, it is recommended to
@@ -95,9 +96,18 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
 
     @cached_property
     def archive_file(self) -> Path:
-        """Path to archive file."""
+        """Path to archive file.
+
+        Because the archive file path contains runtime, it's use can cause a
+        race condition or recursion error if used in some locations.
+        If we removed runtime from the path we would not have a way to track
+        changes to runtime which is more important than needing to be mindful
+        of where this is used.
+
+        """
         return self.project.build_directory / (
             f"{self.project.source_code.root_directory.name}."
+            f"{self.runtime}."
             f"{self.project.source_code.md5_hash}.zip"
         )
 
@@ -167,7 +177,10 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             prefix = (
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
             )
-        return f"{prefix}/{self.archive_file.name}"
+        return (  # this can't contain runtime - causes a cyclic dependency
+            f"{prefix}/{self.project.source_code.root_directory.name}."
+            f"{self.project.source_code.md5_hash}.zip"
+        )
 
     @cached_property
     def object_version_id(self) -> Optional[str]:
@@ -209,12 +222,8 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         if self.archive_file.stat().st_size <= self.SIZE_EOCD:
             raise DeploymentPackageEmptyError(self.archive_file)
 
-        # clear cached properties so they can recalculate;
-        # handles cached property not being resolved yet
-        with suppress(AttributeError):
-            del self.code_sha256
-        with suppress(AttributeError):
-            del self.md5_checksum
+        # clear cached properties so they can recalculate
+        self._del_cached_property("code_sha256", "exists", "md5_checksum")
         return self.archive_file
 
     def _build_fix_file_permissions(self, archive_file: zipfile.ZipFile) -> None:
@@ -296,6 +305,15 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             return urlencode(tags)
         return tags
 
+    def delete(self) -> None:
+        """Delete deployment package."""
+        self.archive_file.unlink(missing_ok=True)
+        LOGGER.verbose("deleted local deployment package %s", self.archive_file)
+        # clear cached properties so they can recalculate
+        self._del_cached_property(
+            "code_sha256", "exists", "md5_checksum", "object_version_id"
+        )
+
     def iterate_dependency_directory(self) -> Iterator[Path]:
         """Iterate over the contents of the dependency directory.
 
@@ -336,11 +354,8 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
             Key=self.object_key,
             Tagging=self.build_tag_set(),
         )
-
-        # clear cached properties so they can recalculate;
-        # handles cached property not being resolved yet
-        with suppress(AttributeError):
-            del self.object_version_id
+        # clear cached properties so they can recalculate
+        self._del_cached_property("object_version_id")
 
     @classmethod
     def init(cls, project: _ProjectTypeVar) -> DeploymentPackage[_ProjectTypeVar]:
@@ -360,7 +375,15 @@ class DeploymentPackage(Generic[_ProjectTypeVar]):
         """
         s3_obj = DeploymentPackageS3Object(project)
         if s3_obj.exists:
-            return s3_obj
+            if s3_obj.runtime == project.runtime:
+                return s3_obj
+            LOGGER.warning(
+                "runtime of deployment package found in S3 (%s) does not match "
+                "requirement (%s); deleting & recreating...",
+                s3_obj.runtime,
+                project.runtime,
+            )
+            s3_obj.delete()
         return cls(project)
 
 
@@ -484,18 +507,58 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         return self.object_tags[self.META_TAGS["runtime"]]
 
     def build(self) -> Path:
-        """Build the deployment package."""
+        """Build the deployment package.
+
+        The object should already exist. This method only exists as a "placeholder"
+        to match the parent class. If the object does not already exist, and
+        error is raised.
+
+        Raises:
+            S3ObjectDoesNotExistError: The S3 object does not exist.
+
+        """
+        if not self.exists:
+            raise S3ObjectDoesNotExistError(self.bucket.name, self.object_key)
         LOGGER.info("build skipped; %s already exists", self.archive_file.name)
         return self.archive_file
 
+    def delete(self) -> None:
+        """Delete deployment package."""
+        if self.exists:
+            self.bucket.client.delete_object(
+                Bucket=self.bucket.name, Key=self.object_key
+            )
+            LOGGER.verbose(
+                "deleted deployment package S3 object %s",
+                self.bucket.format_bucket_path_uri(key=self.object_key),
+            )
+            # clear cached properties so they can recalculate
+            self._del_cached_property(
+                "code_sha256",
+                "exists",
+                "md5_checksum",
+                "object_tags",
+                "object_version_id",
+                "runtime",
+            )
+
     def upload(self, *, build: bool = True) -> None:  # pylint: disable=unused-argument
         """Upload deployment package.
+
+        The object should already exist. This method only exists as a "placeholder"
+        to match the parent class. If the object does not already exist, and
+        error is raised.
 
         Args:
             build: If true, the deployment package will be built before before
                 trying to upload it. If false, it must have already been built.
 
+        Raises:
+            S3ObjectDoesNotExistError: The S3 object does not exist.
+
         """
+        if not self.exists:
+            raise S3ObjectDoesNotExistError(self.bucket.name, self.object_key)
         LOGGER.info(
             "upload skipped; %s already exists",
             self.bucket.format_bucket_path_uri(key=self.object_key),

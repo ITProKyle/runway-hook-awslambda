@@ -44,7 +44,7 @@ class PythonFunction(FunctionHook[PythonProject]):
 
     def cleanup_on_error(self) -> None:
         """Cleanup after an error has occurred."""
-        self.deployment_package.archive_file.unlink(missing_ok=True)
+        self.deployment_package.delete()
         self.project.cleanup_on_error()
 
     def pre_deploy(self) -> Any:

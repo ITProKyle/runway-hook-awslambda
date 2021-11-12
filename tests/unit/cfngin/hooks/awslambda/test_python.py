@@ -58,7 +58,7 @@ class TestPythonFunction:
         deployment_package = mocker.patch.object(PythonFunction, "deployment_package")
         project = mocker.patch.object(PythonFunction, "project")
         assert not PythonFunction(Mock(), **args.dict()).cleanup_on_error()
-        deployment_package.archive_file.unlink.assert_called_once_with(missing_ok=True)
+        deployment_package.delete.assert_called_once_with()
         project.cleanup_on_error.assert_called_once_with()
 
     def test_deployment_package(
