@@ -135,9 +135,9 @@ class TestDeploymentPackage:
         """Test archive_file."""
         obj = DeploymentPackage(project)
         assert obj.archive_file.parent == project.build_directory
-        assert (
-            obj.archive_file.name
-            == f"{project.source_code.root_directory.name}.{project.source_code.md5_hash}.zip"
+        assert obj.archive_file.name == (
+            f"{project.source_code.root_directory.name}.{project.runtime}."
+            f"{project.source_code.md5_hash}.zip"
         )
 
     def test_bucket(self, mocker: MockerFixture, project: ProjectTypeAlias) -> None:
@@ -445,7 +445,10 @@ class TestDeploymentPackage:
             )
         else:
             expected_prefix = "awslambda/functions"
-        assert obj.object_key == f"{expected_prefix}/{obj.archive_file.name}"
+        assert obj.object_key == (
+            f"{expected_prefix}/{project.source_code.root_directory.name}."
+            f"{project.source_code.md5_hash}.zip"
+        )
 
     @pytest.mark.parametrize(
         "response, expected", [({}, None), ({"VersionId": "foo"}, "foo")]
@@ -551,6 +554,11 @@ class TestDeploymentPackageS3Object:
     ) -> None:
         """Test build object exists."""
         caplog.set_level(LogLevels.INFO, logger=f"runway.{MODULE}")
+        mocker.patch.object(
+            DeploymentPackageS3Object,
+            "archive_file",
+            project.build_directory / "archive_file",
+        )
         mocker.patch.object(DeploymentPackageS3Object, "exists", True)
         obj = DeploymentPackageS3Object(project)
         assert obj.build() == obj.archive_file
@@ -627,7 +635,6 @@ class TestDeploymentPackageS3Object:
                 {},
                 {"Bucket": project.args.bucket_name, "Key": object_key},
             )
-            obj.archive_file.touch()
         with stubber:
             obj.delete()
         stubber.assert_no_pending_responses()

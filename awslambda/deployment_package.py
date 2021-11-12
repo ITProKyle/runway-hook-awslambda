@@ -96,9 +96,18 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
     @cached_property
     def archive_file(self) -> Path:
-        """Path to archive file."""
+        """Path to archive file.
+
+        Because the archive file path contains runtime, it's use can cause a
+        race condition or recursion error if used in some locations.
+        If we removed runtime from the path we would not have a way to track
+        changes to runtime which is more important than needing to be mindful
+        of where this is used.
+
+        """
         return self.project.build_directory / (
             f"{self.project.source_code.root_directory.name}."
+            f"{self.runtime}."
             f"{self.project.source_code.md5_hash}.zip"
         )
 
@@ -168,7 +177,10 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
             prefix = (
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
             )
-        return f"{prefix}/{self.archive_file.name}"
+        return (  # this can't contain runtime - causes a cyclic dependency
+            f"{prefix}/{self.project.source_code.root_directory.name}."
+            f"{self.project.source_code.md5_hash}.zip"
+        )
 
     @cached_property
     def object_version_id(self) -> Optional[str]:
@@ -529,8 +541,6 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
                 "object_version_id",
                 "runtime",
             )
-        self.archive_file.unlink(missing_ok=True)
-        LOGGER.verbose("deleted local deployment package %s", self.archive_file)
 
     def upload(self, *, build: bool = True) -> None:  # pylint: disable=unused-argument
         """Upload deployment package.
