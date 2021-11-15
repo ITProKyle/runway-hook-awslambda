@@ -193,14 +193,23 @@ class TestDeploymentPackage:
                 ]
             )
 
-    def test_archive_file(self, project: ProjectTypeAlias) -> None:
+    @pytest.mark.parametrize("usage_type", ["function", "layer"])
+    def test_archive_file(
+        self, project: ProjectTypeAlias, usage_type: Literal["function", "layer"]
+    ) -> None:
         """Test archive_file."""
-        obj = DeploymentPackage(project)
+        obj = DeploymentPackage(project, usage_type)
         assert obj.archive_file.parent == project.build_directory
-        assert obj.archive_file.name == (
-            f"{project.source_code.root_directory.name}.{project.runtime}."
-            f"{project.source_code.md5_hash}.zip"
-        )
+        if usage_type == "function":
+            assert obj.archive_file.name == (
+                f"{project.source_code.root_directory.name}.{project.runtime}."
+                f"{project.source_code.md5_hash}.zip"
+            )
+        else:
+            assert obj.archive_file.name == (
+                f"{project.source_code.root_directory.name}.layer."
+                f"{project.runtime}.{project.source_code.md5_hash}.zip"
+            )
 
     def test_bucket(self, mocker: MockerFixture, project: ProjectTypeAlias) -> None:
         """Test bucket."""
@@ -1010,6 +1019,58 @@ class TestDeploymentPackageS3Object:
         assert excinfo.value.resource == bucket.format_bucket_path_uri.return_value
         assert excinfo.value.tag_key == DeploymentPackageS3Object.META_TAGS["runtime"]
 
+    def test_update_tags(
+        self, mocker: MockerFixture, project: ProjectTypeAlias
+    ) -> None:
+        """Test mock_update_tags."""
+        bucket = Bucket(project.ctx, project.args.bucket_name)
+        mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        mocker.patch.object(DeploymentPackageS3Object, "object_tags", {"bar": "foo"})
+        mock_build_tag_set = mocker.patch.object(
+            DeploymentPackageS3Object, "build_tag_set", return_value={"foo": "bar"}
+        )
+        object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
+
+        stubber = cast("Stubber", project.ctx.add_stubber("s3"))  # type: ignore
+        stubber.add_response(
+            "put_object_tagging",
+            {"VersionId": ""},
+            {
+                "Bucket": project.args.bucket_name,
+                "Key": object_key,
+                "Tagging": {"TagSet": [{"Key": "foo", "Value": "bar"}]},
+            },
+        )
+        with stubber:
+            assert not DeploymentPackageS3Object(project).update_tags()
+        mock_build_tag_set.assert_called_once_with(url_encoded=False)
+        stubber.assert_no_pending_responses()
+
+    def test_update_tags_no_change(
+        self,
+        caplog: LogCaptureFixture,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+    ) -> None:
+        """Test mock_update_tags no change."""
+        caplog.set_level(LogLevels.DEBUG, logger=f"runway.{MODULE}")
+        bucket = Bucket(project.ctx, project.args.bucket_name)
+        mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        mocker.patch.object(DeploymentPackageS3Object, "object_tags", {"bar": "foo"})
+        mock_build_tag_set = mocker.patch.object(
+            DeploymentPackageS3Object, "build_tag_set", return_value={"bar": "foo"}
+        )
+        object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
+        stubber = cast("Stubber", project.ctx.add_stubber("s3"))  # type: ignore
+        with stubber:
+            assert not DeploymentPackageS3Object(project).update_tags()
+        mock_build_tag_set.assert_called_once_with(url_encoded=False)
+        stubber.assert_no_pending_responses()
+        assert (
+            f"{bucket.format_bucket_path_uri(key=object_key)} tags don't need to be updated"
+            in caplog.messages
+        )
+
     @pytest.mark.parametrize("build", [False, True])
     def test_upload_exists(
         self,
@@ -1024,11 +1085,13 @@ class TestDeploymentPackageS3Object:
         bucket = Bucket(project.ctx, project.args.bucket_name)
         object_key = mocker.patch.object(DeploymentPackageS3Object, "object_key", "key")
         mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        mock_update_tags = mocker.patch.object(DeploymentPackageS3Object, "update_tags")
         assert not DeploymentPackageS3Object(project).upload(build=build)
         assert (
             f"upload skipped; {bucket.format_bucket_path_uri(key=object_key)} already exists"
             in caplog.messages
         )
+        mock_update_tags.assert_called_once_with()
 
     def test_upload_not_exists(
         self, mocker: MockerFixture, project: ProjectTypeAlias
@@ -1037,8 +1100,10 @@ class TestDeploymentPackageS3Object:
         mocker.patch.object(DeploymentPackageS3Object, "exists", False)
         bucket = Bucket(project.ctx, project.args.bucket_name)
         mocker.patch.object(DeploymentPackageS3Object, "bucket", bucket)
+        mock_update_tags = mocker.patch.object(DeploymentPackageS3Object, "update_tags")
         obj = DeploymentPackageS3Object(project)
         with pytest.raises(S3ObjectDoesNotExistError) as excinfo:
             obj.upload()
         assert excinfo.value.bucket == bucket.name
         assert excinfo.value.key == obj.object_key
+        mock_update_tags.assert_not_called()

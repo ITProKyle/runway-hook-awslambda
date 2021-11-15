@@ -120,8 +120,8 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         """
         return self.project.build_directory / (
             f"{self.project.source_code.root_directory.name}."
-            f"{self.runtime}."
-            f"{self.project.source_code.md5_hash}.zip"
+            + ("layer." if self.usage_type == "layer" else "")
+            + f"{self.runtime}.{self.project.source_code.md5_hash}.zip"
         )
 
     @cached_property
@@ -655,6 +655,22 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
                 "runtime",
             )
 
+    def update_tags(self) -> None:
+        """Update tags of the S3 object."""
+        new_tags = self.build_tag_set(url_encoded=False)
+        if new_tags == self.object_tags:
+            LOGGER.debug(
+                "%s tags don't need to be updated",
+                self.bucket.format_bucket_path_uri(key=self.object_key),
+            )
+            return
+        self.bucket.client.put_object_tagging(
+            Bucket=self.bucket.name,
+            Key=self.object_key,
+            Tagging={"TagSet": [{"Key": k, "Value": v} for k, v in new_tags.items()]},
+        )
+        LOGGER.info("updated S3 object's tags")
+
     # pylint: disable=unused-argument
     def upload(self, *, build: bool = True) -> None:
         """Upload deployment package.
@@ -677,3 +693,4 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             "upload skipped; %s already exists",
             self.bucket.format_bucket_path_uri(key=self.object_key),
         )
+        self.update_tags()
