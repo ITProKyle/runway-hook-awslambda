@@ -8,7 +8,7 @@ import pytest
 from mock import Mock
 from pydantic import ValidationError
 
-from awslambda._python import PythonFunction
+from awslambda._python import PythonFunction, PythonLayer
 from awslambda.models.args import PythonFunctionHookArgs
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ class TestPythonFunction:
             PythonFunction(Mock(), **args.dict()).pre_deploy()
             == model.dict.return_value
         )
-        deployment_package.upload.assert_called_once_with()
+        deployment_package.upload.assert_called_once_with(layer=False)
         build_response.assert_called_once_with("deploy")
         model.dict.assert_called_once_with(by_alias=True)
         cleanup_on_error.assert_not_called()
@@ -110,7 +110,7 @@ class TestPythonFunction:
         )
         with pytest.raises(Exception):
             assert PythonFunction(Mock(), **args.dict()).pre_deploy()
-        deployment_package.upload.assert_called_once_with()
+        deployment_package.upload.assert_called_once_with(layer=False)
         build_response.assert_not_called()
         cleanup_on_error.assert_called_once_with()
         cleanup.assert_called_once_with()
@@ -121,3 +121,48 @@ class TestPythonFunction:
         project_class = mocker.patch(f"{MODULE}.PythonProject")
         assert PythonFunction(ctx, **args.dict()).project == project_class.return_value
         project_class.assert_called_once_with(args, ctx)
+
+
+class TestPythonLayer:
+    """Test PythonLayer."""
+
+    def test_pre_deploy(
+        self, args: PythonFunctionHookArgs, mocker: MockerFixture
+    ) -> None:
+        """Test pre_deploy."""
+        model = Mock(dict=Mock(return_value="success"))
+        build_response = mocker.patch.object(
+            PythonLayer, "build_response", return_value=(model)
+        )
+        cleanup = mocker.patch.object(PythonLayer, "cleanup")
+        cleanup_on_error = mocker.patch.object(PythonLayer, "cleanup_on_error")
+        deployment_package = mocker.patch.object(PythonLayer, "deployment_package")
+        assert (
+            PythonLayer(Mock(), **args.dict()).pre_deploy() == model.dict.return_value
+        )
+        deployment_package.upload.assert_called_once_with(layer=True)
+        build_response.assert_called_once_with("deploy")
+        model.dict.assert_called_once_with(by_alias=True)
+        cleanup_on_error.assert_not_called()
+        cleanup.assert_called_once_with()
+
+    def test_pre_deploy_always_cleanup(
+        self, args: PythonFunctionHookArgs, mocker: MockerFixture
+    ) -> None:
+        """Test pre_deploy always cleanup."""
+        build_response = mocker.patch.object(
+            PythonLayer, "build_response", return_value="success"
+        )
+        cleanup = mocker.patch.object(PythonLayer, "cleanup")
+        cleanup_on_error = mocker.patch.object(PythonLayer, "cleanup_on_error")
+        deployment_package = mocker.patch.object(
+            PythonLayer,
+            "deployment_package",
+            Mock(upload=Mock(side_effect=Exception)),
+        )
+        with pytest.raises(Exception):
+            assert PythonLayer(Mock(), **args.dict()).pre_deploy()
+        deployment_package.upload.assert_called_once_with(layer=True)
+        build_response.assert_not_called()
+        cleanup_on_error.assert_called_once_with()
+        cleanup.assert_called_once_with()

@@ -112,6 +112,22 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """Explicitly define the directory location.
     Must be an absolute path or it will be relative to the CFNgin module directory."""
 
+    compatible_architectures: Optional[List[str]] = None
+    """A list of compatible instruction set architectures.
+    (https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html)
+
+    **Only used for Lambda Layers.**
+
+    """
+
+    compatible_runtimes: Optional[List[str]] = None
+    """A list of compatible function runtimes.
+    Used for filtering with ``ListLayers`` and ``ListLayerVersions``.
+
+    **Only used for Lambda Layers.**
+
+    """
+
     docker: DockerOptions = DockerOptions()
     """Docker options."""
 
@@ -130,6 +146,18 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
             - poetry.lock
             - poetry.toml
             - pyproject.toml
+
+    """
+
+    license: Optional[str] = None
+    """The layer's software license. Can be any of the following:
+
+    - A SPDX license identifier (e.g. ``MIT``).
+    - The URL of a license hosted on the internet (e.g.
+      ``https://opensource.org/licenses/MIT``).
+    - The full text of the license.
+
+    **Only used for Lambda Layers.**
 
     """
 
@@ -168,6 +196,16 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     _resolve_path_fields = validator("cache_dir", "source_code", allow_reuse=True)(
         resolve_path_field
     )
+
+    @validator("license", allow_reuse=True)  # TODO move to runway.utils
+    def _check_tag_value_length(cls, v: Optional[str]) -> Optional[str]:
+        """Check the length of tag value is less < 256."""
+        v_len = len(v) if v else 0
+        if 0 < v_len < 256:
+            return v
+        if v_len == 0:
+            return None
+        raise ValueError(f"length of value {v_len} must be < 256")
 
     @validator("runtime", always=True, allow_reuse=True)
     def _validate_runtime_or_docker(

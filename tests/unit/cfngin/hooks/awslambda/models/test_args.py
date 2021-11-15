@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pytest
 from pydantic import ValidationError
@@ -19,6 +19,27 @@ MODULE = "awslambda.models.args"
 
 class TestAwsLambdaHookArgs:
     """Test AwsLambdaHookArgs."""
+
+    @pytest.mark.parametrize("value", ["foobar", None])
+    def test__check_tag_value_length(self, value: Optional[str]) -> None:
+        """Test _check_tag_value_length."""
+        obj = AwsLambdaHookArgs(
+            bucket_name="test-bucket",
+            license=value,
+            runtime="test",
+            source_code="./",  # type: ignore
+        )
+        assert obj.license == value
+
+    def test__check_tag_value_length_raise_value_error(self) -> None:
+        """Test _check_tag_value_length raise ValueError."""
+        with pytest.raises(ValueError):
+            AwsLambdaHookArgs(
+                bucket_name="test-bucket",
+                license="0" * 256,
+                runtime="test",
+                source_code="./",  # type: ignore
+            )
 
     def test___resolve_path(self) -> None:
         """Test _resolve_path."""

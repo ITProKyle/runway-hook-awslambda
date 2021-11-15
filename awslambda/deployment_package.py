@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Generic,
     Iterator,
+    List,
     Optional,
     TypeVar,
     Union,
@@ -61,6 +62,9 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
     META_TAGS: ClassVar[Dict[str, str]] = {
         "code_sha256": "runway.cfngin:awslambda.code_sha256",
+        "compatible_architectures": "runway.cfngin:awslambda.compatible_architectures",
+        "compatible_runtimes": "runway.cfngin:awslambda.compatible_runtimes",
+        "license": "runway.cfngin:awslambda.license",
         "md5_checksum": "runway.cfngin:awslambda.md5_checksum",
         "runtime": "runway.cfngin:awslambda.runtime",
         "source_code.hash": "runway.cfngin:awslambda.source_code.hash",
@@ -137,6 +141,16 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         return base64.b64encode(file_hash.digest).decode()
 
     @cached_property
+    def compatible_architectures(self) -> Optional[List[str]]:
+        """List of compatible instruction set architectures."""
+        return self.project.compatible_architectures
+
+    @cached_property
+    def compatible_runtimes(self) -> Optional[List[str]]:
+        """List of compatible runtimes."""
+        return self.project.compatible_runtimes
+
+    @cached_property
     def exists(self) -> bool:
         """Whether the deployment package exists."""
         if self.archive_file.exists():
@@ -153,6 +167,11 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
         """
         return None
+
+    @cached_property
+    def license(self) -> Optional[str]:
+        """Software license for the project."""
+        return self.project.license
 
     @cached_property
     def md5_checksum(self) -> str:
@@ -203,8 +222,15 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         """Runtime of the deployment package."""
         return self.project.runtime
 
-    def build(self) -> Path:
-        """Build the deployment package."""
+    def build(self, *, layer: bool = False) -> Path:
+        """Build the deployment package.
+
+        Args:
+            layer: Build the deployment package to be used as a Lambda Layer.
+                This alters where binaries, packages, etc are placed relative
+                to the root of the archive file.
+
+        """
         if self.exists and self.archive_file.stat().st_size > self.SIZE_EOCD:
             LOGGER.info("build skipped; %s already exists", self.archive_file.name)
             return self.archive_file
@@ -215,8 +241,8 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         with zipfile.ZipFile(
             self.archive_file, "w", zipfile.ZIP_DEFLATED
         ) as archive_file:
-            self._build_zip_dependencies(archive_file)
-            self._build_zip_source_code(archive_file)
+            self._build_zip_dependencies(archive_file, layer=layer)
+            self._build_zip_source_code(archive_file, layer=layer)
             self._build_fix_file_permissions(archive_file)
 
         if self.archive_file.stat().st_size <= self.SIZE_EOCD:
@@ -256,23 +282,53 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                     file_info.external_attr & ~self.ZIPFILE_PERMISSION_MASK
                 ) | (required_perm << 16)
 
-    def _build_zip_dependencies(self, archive_file: zipfile.ZipFile) -> None:
+    def _build_zip_dependencies(
+        self, archive_file: zipfile.ZipFile, *, layer: bool = False
+    ) -> None:
         """Handle installing & zipping dependencies.
 
         Args:
             archive_file: Archive file that is currently open and ready to be
                 written to.
+            layer: Build the deployment package to be used as a Lambda Layer.
+                This alters where binaries, packages, etc are placed relative
+                to the root of the archive file. This special handling must be
+                implimented in subclasses to take effect.
 
         """
         self.project.install_dependencies()
         for dep in self.iterate_dependency_directory():
-            archive_file.write(dep, dep.relative_to(self.project.dependency_directory))
+            archive_file.write(
+                dep,
+                self.insert_layer_dir(
+                    dep, self.project.dependency_directory
+                ).relative_to(self.project.dependency_directory)
+                if layer
+                else dep.relative_to(self.project.dependency_directory),
+            )
 
-    def _build_zip_source_code(self, archive_file: zipfile.ZipFile) -> None:
-        """Handle zipping the project source code."""
+    def _build_zip_source_code(
+        self, archive_file: zipfile.ZipFile, *, layer: bool = False
+    ) -> None:
+        """Handle zipping the project source code.
+
+        Args:
+            archive_file: Archive file that is currently open and ready to be
+                written to.
+            layer: Build the deployment package to be used as a Lambda Layer.
+                This alters where binaries, packages, etc are placed relative
+                to the root of the archive file. This special handling must be
+                implimented in subclasses to take effect.
+
+        """
         for src_file in self.project.source_code:
             archive_file.write(
-                src_file, src_file.relative_to(self.project.source_code.root_directory)
+                src_file,
+                self.insert_layer_dir(
+                    src_file, self.project.source_code.root_directory
+                ).relative_to(self.project.source_code.root_directory)
+                if layer
+                else src_file.relative_to(self.project.source_code.root_directory),
             )
 
     @overload
@@ -294,13 +350,31 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
             url_encoded: Whether to return a dict or URL encoded query string.
 
         """
+        optional_metadata = {
+            self.META_TAGS["compatible_architectures"]: ", ".join(
+                self.project.compatible_architectures
+            )
+            if self.project.compatible_architectures
+            else None,
+            self.META_TAGS["compatible_runtimes"]: ", ".join(
+                self.project.compatible_runtimes
+            )
+            if self.project.compatible_runtimes
+            else None,
+            self.META_TAGS["license"]: self.project.license,
+        }
         metadata = {
             self.META_TAGS["code_sha256"]: self.code_sha256,
             self.META_TAGS["md5_checksum"]: self.md5_checksum,
             self.META_TAGS["runtime"]: self.runtime,
             self.META_TAGS["source_code.hash"]: self.project.source_code.md5_hash,
         }
-        tags = {**self.project.ctx.tags, **self.project.args.tags, **metadata}
+        tags = {
+            **self.project.ctx.tags,
+            **self.project.args.tags,
+            **metadata,
+            **{k: v for k, v in optional_metadata.items() if v},
+        }
         if url_encoded:
             return urlencode(tags)
         return tags
@@ -313,6 +387,23 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         self._del_cached_property(
             "code_sha256", "exists", "md5_checksum", "object_version_id"
         )
+
+    @staticmethod
+    def insert_layer_dir(
+        file_path: Path, relative_to: Path  # pylint: disable=unused-argument
+    ) -> Path:
+        """Insert directory into local file path for layer archive.
+
+        If required, this should be overridden by a subclass for language
+        specific requirements.
+
+        Args:
+            file_path: Path to local file.
+            relative_to: Path to a directory that the file_path will be relative
+                to in the deployment package.
+
+        """
+        return file_path
 
     def iterate_dependency_directory(self) -> Iterator[Path]:
         """Iterate over the contents of the dependency directory.
@@ -327,16 +418,18 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 continue  # ignore files that match the filter
             yield child
 
-    def upload(self, *, build: bool = True) -> None:
+    def upload(self, *, build: bool = True, layer: bool = False) -> None:
         """Upload deployment package.
 
         Args:
             build: If true, the deployment package will be built before before
                 trying to upload it. If false, it must have already been built.
+            layer: Build the deployment package to be used as a Lambda Layer.
+                This only takes effect if ``build=True``.
 
         """
         if build:
-            self.build()
+            self.build(layer=layer)
 
         # we don't really need encoding - it can be NoneType so throw it away
         content_type, _content_encoding = mimetypes.guess_type(self.archive_file)
@@ -417,6 +510,22 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         return self.object_tags[self.META_TAGS["code_sha256"]]
 
     @cached_property
+    def compatible_architectures(self) -> Optional[List[str]]:
+        """List of compatible instruction set architectures."""
+        if self.META_TAGS["compatible_architectures"] in self.object_tags:
+            return self.object_tags[self.META_TAGS["compatible_architectures"]].split(
+                ", "
+            )
+        return None
+
+    @cached_property
+    def compatible_runtimes(self) -> Optional[List[str]]:
+        """List of compatible runtimes."""
+        if self.META_TAGS["compatible_runtimes"] in self.object_tags:
+            return self.object_tags[self.META_TAGS["compatible_runtimes"]].split(", ")
+        return None
+
+    @cached_property
     def exists(self) -> bool:
         """Whether the S3 object exists."""
         if self.head and not self.head.get("DeleteMarker", False):
@@ -447,6 +556,13 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
                     self.bucket.format_bucket_path_uri(key=self.object_key),
                 )
             raise
+
+    @cached_property
+    def license(self) -> Optional[str]:
+        """Software license for the project."""
+        if self.META_TAGS["license"] in self.object_tags:
+            return self.object_tags[self.META_TAGS["license"]]
+        return None
 
     @cached_property
     def md5_checksum(self) -> str:
@@ -506,7 +622,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             )
         return self.object_tags[self.META_TAGS["runtime"]]
 
-    def build(self) -> Path:
+    def build(self, *, layer: bool = False) -> Path:  # pylint: disable=unused-argument
         """Build the deployment package.
 
         The object should already exist. This method only exists as a "placeholder"
@@ -542,7 +658,8 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
                 "runtime",
             )
 
-    def upload(self, *, build: bool = True) -> None:  # pylint: disable=unused-argument
+    # pylint: disable=unused-argument
+    def upload(self, *, build: bool = True, layer: bool = False) -> None:
         """Upload deployment package.
 
         The object should already exist. This method only exists as a "placeholder"
@@ -552,6 +669,8 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         Args:
             build: If true, the deployment package will be built before before
                 trying to upload it. If false, it must have already been built.
+            layer: Build the deployment package to be used as a Lambda Layer.
+                This only takes effect if ``build=True``.
 
         Raises:
             S3ObjectDoesNotExistError: The S3 object does not exist.

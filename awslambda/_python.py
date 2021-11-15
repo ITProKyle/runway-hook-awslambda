@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from runway.compat import cached_property
 
-from .base_classes import FunctionHook
+from .base_classes import AwsLambdaHook
 from .models.args import PythonFunctionHookArgs
 from .python_requirements import PythonDeploymentPackage, PythonProject
 
@@ -18,10 +18,14 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
 
-class PythonFunction(FunctionHook[PythonProject]):
+class PythonFunction(AwsLambdaHook[PythonProject]):
     """Hook for creating an AWS Lambda Function using Python runtime."""
 
+    BUILD_LAYER: ClassVar[bool] = False
+    """Flag to denote that this hook creates a Lambda Function deployment package."""
+
     args: PythonFunctionHookArgs
+    """Parsed hook arguments."""
 
     def __init__(self, context: CfnginContext, **kwargs: Any) -> None:
         """Instantiate class."""
@@ -50,10 +54,17 @@ class PythonFunction(FunctionHook[PythonProject]):
     def pre_deploy(self) -> Any:
         """Run during the **pre_deploy** stage."""
         try:
-            self.deployment_package.upload()
+            self.deployment_package.upload(layer=self.BUILD_LAYER)
             return self.build_response("deploy").dict(by_alias=True)
         except BaseException:
             self.cleanup_on_error()
             raise
         finally:
             self.cleanup()
+
+
+class PythonLayer(PythonFunction):
+    """Hook for creating an AWS Lambda Layer using Python runtime."""
+
+    BUILD_LAYER: ClassVar[bool] = True
+    """Flag to denote that this hook creates a Lambda Layer deployment package."""

@@ -8,6 +8,7 @@ from typing import (
     Any,
     ClassVar,
     Generic,
+    List,
     Optional,
     Set,
     Tuple,
@@ -124,11 +125,49 @@ class Project(Generic[_AwsLambdaHookArgsTypeVar]):
         return cache_dir
 
     @cached_property
+    def compatible_architectures(self) -> Optional[List[str]]:
+        """List of compatible instruction set architectures."""
+        return getattr(self.args, "compatible_architectures", None)
+
+    @cached_property
+    def compatible_runtimes(self) -> Optional[List[str]]:
+        """List of compatible runtimes.
+
+        Value should be valid Lambda Function runtimes
+        (https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html).
+
+        Raises:
+            ValueError: Defined or detected runtime is not in the list of
+                compatible runtimes.
+
+        """
+        runtimes = getattr(self.args, "compatible_runtimes", cast(List[str], []))
+        if runtimes and self.runtime not in runtimes:
+            raise ValueError(
+                f"runtime ({self.runtime}) not in compatible runtimes ({', '.join(runtimes)})"
+            )
+        return runtimes
+
+    @cached_property
     def dependency_directory(self) -> Path:
         """Directory to use as the target of ``pip install --target``."""
         result = self.build_directory / "dependencies"
         result.mkdir(exist_ok=True, parents=True)
         return result
+
+    @cached_property
+    def license(self) -> Optional[str]:
+        """Software license for the project.
+
+        Can be any of the following:
+
+        - A SPDX license identifier (e.g. ``MIT``).
+        - The URL of a license hosted on the internet (e.g.
+          ``https://opensource.org/licenses/MIT``).
+        - The full text of the license.
+
+        """
+        return getattr(self.args, "license", None)
 
     @cached_property
     def metadata_files(self) -> Tuple[Path, ...]:
@@ -305,8 +344,14 @@ _ProjectTypeVar = TypeVar("_ProjectTypeVar", bound=Project[AwsLambdaHookArgs])
 class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
     """Base class for AWS Lambda hooks."""
 
+    BUILD_LAYER: ClassVar[bool] = False
+    """Flag to denote if the hook creates a Lambda Function or Layer deployment package."""
+
     args: AwsLambdaHookArgs
+    """Parsed hook arguments."""
+
     ctx: CfnginContext
+    """CFNgin context object."""
 
     # pylint: disable=super-init-not-called
     def __init__(self, context: CfnginContext, **_kwargs: Any) -> None:
@@ -463,31 +508,3 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
         """Run during the **pre_destroy** stage."""
         LOGGER.warning("pre_destroy not implimented for %s", self.__class__.__name__)
         return True
-
-
-class FunctionHook(AwsLambdaHook[_ProjectTypeVar]):
-    """Hook used in the creation of an AWS Lambda Function."""
-
-    @cached_property
-    def deployment_package(self) -> DeploymentPackage[_ProjectTypeVar]:
-        """AWS Lambda deployment package."""
-        raise NotImplementedError
-
-    @cached_property
-    def project(self) -> _ProjectTypeVar:
-        """Project being deployed as an AWS Lambda Function."""
-        raise NotImplementedError
-
-
-class LayerHook(AwsLambdaHook[_ProjectTypeVar]):
-    """Hook used in the create of an AWS Lambda Layer."""
-
-    @cached_property
-    def deployment_package(self) -> DeploymentPackage[_ProjectTypeVar]:
-        """AWS Lambda deployment package."""
-        raise NotImplementedError
-
-    @cached_property
-    def project(self) -> _ProjectTypeVar:
-        """Project being deployed as an AWS Lambda Function."""
-        raise NotImplementedError

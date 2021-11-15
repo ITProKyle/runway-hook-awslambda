@@ -1,6 +1,7 @@
 """AWS Lambda Python Deployment Package."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from igittigitt import IgnoreParser
@@ -29,3 +30,15 @@ class PythonDeploymentPackage(DeploymentPackage[PythonProject]):
         gitignore_filter.add_rule("**/*.dist-info*", self.project.dependency_directory)
         gitignore_filter.add_rule("**/*.py[c|o]", self.project.dependency_directory)
         return gitignore_filter
+
+    @staticmethod
+    def insert_layer_dir(file_path: Path, relative_to: Path) -> Path:
+        """Insert ``python`` directory into local file path for layer archive.
+
+        Args:
+            file_path: Path to local file.
+            relative_to: Path to a directory that the file_path will be relative
+                to in the deployment package.
+
+        """
+        return relative_to / f"python/{file_path.relative_to(relative_to)}"
