@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, cast
 from urllib.parse import urlencode
 
 import igittigitt
@@ -76,9 +76,12 @@ class TestDeploymentPackage:
             file0.external_attr & DeploymentPackage.ZIPFILE_PERMISSION_MASK
         ) >> 16 == 0o755
 
-    @pytest.mark.parametrize("layer", [False, True])
+    @pytest.mark.parametrize("usage_type", ["function", "layer"])
     def test__build_zip_dependencies(
-        self, layer: bool, mocker: MockerFixture, project: ProjectTypeAlias
+        self,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+        usage_type: Literal["function", "layer"],
     ) -> None:
         """Test _build_zip_dependencies."""
         archive_file = Mock()
@@ -101,11 +104,11 @@ class TestDeploymentPackage:
             ],
         )
 
-        obj = DeploymentPackage(project)
-        obj._build_zip_dependencies(archive_file, layer=layer)
+        obj = DeploymentPackage(project, usage_type)
+        obj._build_zip_dependencies(archive_file)
         mock_install_dependencies.assert_called_once_with()
         mock_iterate_dependency_directory.assert_called_once_with()
-        if layer:
+        if usage_type == "layer":
             mock_insert_layer_dir.assert_has_calls(
                 [  # type: ignore
                     call(dep, project.dependency_directory)
@@ -129,9 +132,12 @@ class TestDeploymentPackage:
                 ]
             )
 
-    @pytest.mark.parametrize("layer", [False, True])
+    @pytest.mark.parametrize("usage_type", ["function", "layer"])
     def test__build_zip_source_code(
-        self, layer: bool, mocker: MockerFixture, project: ProjectTypeAlias
+        self,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+        usage_type: Literal["function", "layer"],
     ) -> None:
         """Test _build_zip_source_code."""
         archive_file = Mock()
@@ -157,9 +163,9 @@ class TestDeploymentPackage:
             side_effect=layer_return,
         )
 
-        obj = DeploymentPackage(project)
-        obj._build_zip_source_code(archive_file, layer=layer)
-        if layer:
+        obj = DeploymentPackage(project, usage_type)
+        obj._build_zip_source_code(archive_file)
+        if usage_type == "layer":
             mock_insert_layer_dir.assert_has_calls(
                 [  # type: ignore
                     call(src_file, project.source_code.root_directory)
@@ -215,11 +221,9 @@ class TestDeploymentPackage:
         with pytest.raises(BucketAccessDeniedError):
             assert DeploymentPackage(project).bucket
 
-    @pytest.mark.parametrize("layer_arg", [False, True])
     def test_build(
         self,
         caplog: LogCaptureFixture,
-        layer_arg: bool,
         mocker: MockerFixture,
         project: ProjectTypeAlias,
     ) -> None:
@@ -232,12 +236,9 @@ class TestDeploymentPackage:
             return_value=mock_zipfile,
         )
 
-        def _write_zip(
-            package: DeploymentPackage[Any], archive_file: Mock, *, layer: bool = False
-        ) -> None:
+        def _write_zip(package: DeploymentPackage[Any], archive_file: Mock) -> None:
             package.archive_file.write_text("test" * 8)
             assert archive_file is mock_zipfile
-            assert layer is layer_arg
 
         mock_build_zip_dependencies = mocker.patch.object(
             DeploymentPackage, "_build_zip_dependencies"
@@ -251,14 +252,12 @@ class TestDeploymentPackage:
         )
 
         obj = DeploymentPackage(project)
-        assert obj.build(layer=layer_arg) == obj.archive_file
+        assert obj.build() == obj.archive_file
         mock_zipfile_class.assert_called_once_with(
             obj.archive_file, "w", zipfile.ZIP_DEFLATED
         )
         mock_zipfile.__enter__.assert_called_once_with()
-        mock_build_zip_dependencies.assert_called_once_with(
-            mock_zipfile, layer=layer_arg
-        )
+        mock_build_zip_dependencies.assert_called_once_with(mock_zipfile)
         mock_build_fix_file_permissions.assert_called_once_with(mock_zipfile)
         mock_del_cached_property.assert_called_once_with(
             "code_sha256", "exists", "md5_checksum"
@@ -272,11 +271,8 @@ class TestDeploymentPackage:
         archive_file = project.build_directory / "foobar.zip"
         mocker.patch.object(DeploymentPackage, "archive_file", archive_file)
 
-        def _write_zip(
-            package: DeploymentPackage[Any], archive_file: Mock, *, layer: bool = False
-        ) -> None:
+        def _write_zip(package: DeploymentPackage[Any], archive_file: Mock) -> None:
             package.archive_file.touch()
-            assert layer is False
 
         mock_build_zip_dependencies = mocker.patch.object(
             DeploymentPackage, "_build_zip_dependencies"
@@ -335,9 +331,12 @@ class TestDeploymentPackage:
         mock_build_zip_source_code.assert_not_called()
         mock_build_fix_file_permissions.assert_not_called()
 
-    @pytest.mark.parametrize("url_encoded", [False, True])
+    @pytest.mark.parametrize("url_encoded", [False, True, False, True])
     def test_build_tag_set(
-        self, mocker: MockerFixture, project: ProjectTypeAlias, url_encoded: bool
+        self,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+        url_encoded: bool,
     ) -> None:
         """Test build_tag_set."""
         code_sha256 = mocker.patch.object(
@@ -438,9 +437,15 @@ class TestDeploymentPackage:
         """Test gitignore_filter."""
         assert not DeploymentPackage(project).gitignore_filter
 
-    @pytest.mark.parametrize("exists_in_s3", [False, True])
+    @pytest.mark.parametrize(
+        "exists_in_s3, usage_type", [(False, "function"), (True, "layer")]
+    )
     def test_init(
-        self, exists_in_s3: bool, mocker: MockerFixture, project: ProjectTypeAlias
+        self,
+        exists_in_s3: bool,
+        mocker: MockerFixture,
+        project: ProjectTypeAlias,
+        usage_type: Literal["function", "layer"],
     ) -> None:
         """Test init where runtime always matches."""
         s3_obj = Mock(exists=exists_in_s3, runtime=project.runtime)
@@ -449,10 +454,12 @@ class TestDeploymentPackage:
         )
 
         if exists_in_s3:
-            assert DeploymentPackage.init(project) == s3_obj
+            assert DeploymentPackage.init(project, usage_type) == s3_obj
         else:
-            assert isinstance(DeploymentPackage.init(project), DeploymentPackage)
-        s3_obj_class.assert_called_once_with(project)
+            assert isinstance(
+                DeploymentPackage.init(project, usage_type), DeploymentPackage
+            )
+        s3_obj_class.assert_called_once_with(project, usage_type)
 
     def test_init_runtime_change(
         self,
@@ -467,7 +474,7 @@ class TestDeploymentPackage:
             f"{MODULE}.DeploymentPackageS3Object", return_value=s3_obj
         )
         assert isinstance(DeploymentPackage.init(project), DeploymentPackage)
-        s3_obj_class.assert_called_once_with(project)
+        s3_obj_class.assert_called_once_with(project, "function")
         s3_obj.delete.assert_called_once_with()
         assert (
             f"runtime of deployment package found in S3 ({s3_obj.runtime}) "
@@ -524,19 +531,30 @@ class TestDeploymentPackage:
         file_hash.add_file.assert_called_once_with(archive_file)
         mock_b64encode.assert_called_once_with(file_hash.digest)
 
-    @pytest.mark.parametrize("object_prefix", [None, "bar", "/bar/", "/bar/foo/"])
+    @pytest.mark.parametrize(
+        "object_prefix, usage_type",
+        [
+            (None, "function"),
+            ("bar", "function"),
+            ("/bar/", "layer"),
+            ("/bar/foo/", "layer"),
+        ],
+    )
     def test_object_key(
-        self, project: ProjectTypeAlias, object_prefix: Optional[str]
+        self,
+        project: ProjectTypeAlias,
+        object_prefix: Optional[str],
+        usage_type: Literal["function", "layer"],
     ) -> None:
         """Test object_key."""
         project.args.object_prefix = object_prefix
-        obj = DeploymentPackage(project)
+        obj = DeploymentPackage(project, usage_type)
         if object_prefix:
             expected_prefix = (
-                f"awslambda/functions/{object_prefix.lstrip('/').rstrip('/')}"
+                f"awslambda/{usage_type}s/{object_prefix.lstrip('/').rstrip('/')}"
             )
         else:
-            expected_prefix = "awslambda/functions"
+            expected_prefix = f"awslambda/{usage_type}s"
         assert obj.object_key == (
             f"{expected_prefix}/{project.source_code.root_directory.name}."
             f"{project.source_code.md5_hash}.zip"
@@ -626,7 +644,7 @@ class TestDeploymentPackage:
         with stubber:
             assert not obj.upload(build=build)
             if build:
-                mock_build.assert_called_once_with(layer=False)
+                mock_build.assert_called_once_with()
             else:
                 mock_build.assert_not_called()
             mock_guess_type.assert_called_once_with(obj.archive_file)

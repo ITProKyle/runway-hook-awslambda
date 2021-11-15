@@ -84,9 +84,16 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
     project: _ProjectTypeVar
     """Project that is being built into a deployment package."""
 
+    usage_type: Literal["function", "layer"]
+    """How the deployment package can be used by AWS Lambda."""
+
     _put_object_response: Optional[PutObjectOutputTypeDef] = None
 
-    def __init__(self, project: _ProjectTypeVar) -> None:
+    def __init__(
+        self,
+        project: _ProjectTypeVar,
+        usage_type: Literal["function", "layer"] = "function",
+    ) -> None:
         """Instantiate class.
 
         The provided ``.init()`` class method should be used in place of
@@ -94,9 +101,11 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
         Args:
             project: Project that is being built into a deployment package.
+            usage_type: How the deployment package can be used by AWS Lambda.
 
         """
         self.project = project
+        self.usage_type = usage_type
 
     @cached_property
     def archive_file(self) -> Path:
@@ -191,7 +200,7 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
     @cached_property
     def object_key(self) -> str:
         """Key to use when upload object to AWS S3."""
-        prefix = "awslambda/functions"
+        prefix = f"awslambda/{self.usage_type}s"
         if self.project.args.object_prefix:
             prefix = (
                 f"{prefix}/{self.project.args.object_prefix.lstrip('/').rstrip('/')}"
@@ -222,15 +231,8 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         """Runtime of the deployment package."""
         return self.project.runtime
 
-    def build(self, *, layer: bool = False) -> Path:
-        """Build the deployment package.
-
-        Args:
-            layer: Build the deployment package to be used as a Lambda Layer.
-                This alters where binaries, packages, etc are placed relative
-                to the root of the archive file.
-
-        """
+    def build(self) -> Path:
+        """Build the deployment package."""
         if self.exists and self.archive_file.stat().st_size > self.SIZE_EOCD:
             LOGGER.info("build skipped; %s already exists", self.archive_file.name)
             return self.archive_file
@@ -241,8 +243,8 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         with zipfile.ZipFile(
             self.archive_file, "w", zipfile.ZIP_DEFLATED
         ) as archive_file:
-            self._build_zip_dependencies(archive_file, layer=layer)
-            self._build_zip_source_code(archive_file, layer=layer)
+            self._build_zip_dependencies(archive_file)
+            self._build_zip_source_code(archive_file)
             self._build_fix_file_permissions(archive_file)
 
         if self.archive_file.stat().st_size <= self.SIZE_EOCD:
@@ -283,17 +285,14 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 ) | (required_perm << 16)
 
     def _build_zip_dependencies(
-        self, archive_file: zipfile.ZipFile, *, layer: bool = False
+        self,
+        archive_file: zipfile.ZipFile,
     ) -> None:
         """Handle installing & zipping dependencies.
 
         Args:
             archive_file: Archive file that is currently open and ready to be
                 written to.
-            layer: Build the deployment package to be used as a Lambda Layer.
-                This alters where binaries, packages, etc are placed relative
-                to the root of the archive file. This special handling must be
-                implimented in subclasses to take effect.
 
         """
         self.project.install_dependencies()
@@ -303,22 +302,16 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 self.insert_layer_dir(
                     dep, self.project.dependency_directory
                 ).relative_to(self.project.dependency_directory)
-                if layer
+                if self.usage_type == "layer"
                 else dep.relative_to(self.project.dependency_directory),
             )
 
-    def _build_zip_source_code(
-        self, archive_file: zipfile.ZipFile, *, layer: bool = False
-    ) -> None:
+    def _build_zip_source_code(self, archive_file: zipfile.ZipFile) -> None:
         """Handle zipping the project source code.
 
         Args:
             archive_file: Archive file that is currently open and ready to be
                 written to.
-            layer: Build the deployment package to be used as a Lambda Layer.
-                This alters where binaries, packages, etc are placed relative
-                to the root of the archive file. This special handling must be
-                implimented in subclasses to take effect.
 
         """
         for src_file in self.project.source_code:
@@ -327,7 +320,7 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 self.insert_layer_dir(
                     src_file, self.project.source_code.root_directory
                 ).relative_to(self.project.source_code.root_directory)
-                if layer
+                if self.usage_type == "layer"
                 else src_file.relative_to(self.project.source_code.root_directory),
             )
 
@@ -347,6 +340,7 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         """Build tag set to be applied to the S3 object.
 
         Args:
+            layer: Tag the deployment package as a Lambda Layer or not.
             url_encoded: Whether to return a dict or URL encoded query string.
 
         """
@@ -418,18 +412,16 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 continue  # ignore files that match the filter
             yield child
 
-    def upload(self, *, build: bool = True, layer: bool = False) -> None:
+    def upload(self, *, build: bool = True) -> None:
         """Upload deployment package.
 
         Args:
             build: If true, the deployment package will be built before before
                 trying to upload it. If false, it must have already been built.
-            layer: Build the deployment package to be used as a Lambda Layer.
-                This only takes effect if ``build=True``.
 
         """
         if build:
-            self.build(layer=layer)
+            self.build()
 
         # we don't really need encoding - it can be NoneType so throw it away
         content_type, _content_encoding = mimetypes.guess_type(self.archive_file)
@@ -451,7 +443,11 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
         self._del_cached_property("object_version_id")
 
     @classmethod
-    def init(cls, project: _ProjectTypeVar) -> DeploymentPackage[_ProjectTypeVar]:
+    def init(
+        cls,
+        project: _ProjectTypeVar,
+        usage_type: Literal["function", "layer"] = "function",
+    ) -> DeploymentPackage[_ProjectTypeVar]:
         """Initialize deployment package.
 
         This should be used in place of creating an instance of this class
@@ -460,13 +456,14 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
         Args:
             project: Project that is being built into a deployment package.
+            usage_type: How the deployment package can be used by AWS Lambda.
 
         Returns:
             Instance of generic S3 object class if S3 object exists else
             an instance of this class.
 
         """
-        s3_obj = DeploymentPackageS3Object(project)
+        s3_obj = DeploymentPackageS3Object(project, usage_type)
         if s3_obj.exists:
             if s3_obj.runtime == project.runtime:
                 return s3_obj
@@ -477,7 +474,7 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
                 project.runtime,
             )
             s3_obj.delete()
-        return cls(project)
+        return cls(project, usage_type)
 
 
 class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
@@ -622,7 +619,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             )
         return self.object_tags[self.META_TAGS["runtime"]]
 
-    def build(self, *, layer: bool = False) -> Path:  # pylint: disable=unused-argument
+    def build(self) -> Path:
         """Build the deployment package.
 
         The object should already exist. This method only exists as a "placeholder"
@@ -659,7 +656,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
             )
 
     # pylint: disable=unused-argument
-    def upload(self, *, build: bool = True, layer: bool = False) -> None:
+    def upload(self, *, build: bool = True) -> None:
         """Upload deployment package.
 
         The object should already exist. This method only exists as a "placeholder"
@@ -669,8 +666,6 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         Args:
             build: If true, the deployment package will be built before before
                 trying to upload it. If false, it must have already been built.
-            layer: Build the deployment package to be used as a Lambda Layer.
-                This only takes effect if ``build=True``.
 
         Raises:
             S3ObjectDoesNotExistError: The S3 object does not exist.

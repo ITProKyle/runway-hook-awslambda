@@ -35,7 +35,9 @@ class PythonFunction(AwsLambdaHook[PythonProject]):
     @cached_property
     def deployment_package(self) -> DeploymentPackage[PythonProject]:
         """AWS Lambda deployment package."""
-        return PythonDeploymentPackage.init(self.project)
+        return PythonDeploymentPackage.init(
+            self.project, "layer" if self.BUILD_LAYER else "function"
+        )
 
     @cached_property
     def project(self) -> PythonProject:
@@ -54,7 +56,7 @@ class PythonFunction(AwsLambdaHook[PythonProject]):
     def pre_deploy(self) -> Any:
         """Run during the **pre_deploy** stage."""
         try:
-            self.deployment_package.upload(layer=self.BUILD_LAYER)
+            self.deployment_package.upload()
             return self.build_response("deploy").dict(by_alias=True)
         except BaseException:
             self.cleanup_on_error()
