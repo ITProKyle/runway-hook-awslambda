@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from runway.compat import cached_property
 
 from .base_classes import AwsLambdaHook
-from .models.args import PythonFunctionHookArgs
+from .models.args import PythonHookArgs
 from .python_requirements import PythonDeploymentPackage, PythonProject
 
 if TYPE_CHECKING:
@@ -24,13 +24,13 @@ class PythonFunction(AwsLambdaHook[PythonProject]):
     BUILD_LAYER: ClassVar[bool] = False
     """Flag to denote that this hook creates a Lambda Function deployment package."""
 
-    args: PythonFunctionHookArgs
+    args: PythonHookArgs
     """Parsed hook arguments."""
 
     def __init__(self, context: CfnginContext, **kwargs: Any) -> None:
         """Instantiate class."""
         super().__init__(context)
-        self.args = PythonFunctionHookArgs.parse_obj(kwargs)
+        self.args = PythonHookArgs.parse_obj(kwargs)
 
     @cached_property
     def deployment_package(self) -> DeploymentPackage[PythonProject]:

@@ -222,8 +222,8 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
         return v
 
 
-class PythonFunctionHookArgs(AwsLambdaHookArgs):
-    """Hook arguments for a Python function."""
+class PythonHookArgs(AwsLambdaHookArgs):
+    """Hook arguments for a Python AWS Lambda deployment package."""
 
     extend_pip_args: Optional[List[str]] = None
     """Additional arguments that should be passed to ``pip install``.

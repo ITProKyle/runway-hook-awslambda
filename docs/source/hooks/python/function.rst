@@ -30,15 +30,15 @@ Arguments that can be passed to hook in the :attr:`~cfngin.hook.args` field.
 Documentation for each field is automatically generated from class attributes in the source code.
 When specifying the field, exclude the class name.
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.bucket_name
+.. autoattribute:: awslambda.models.args.PythonHookArgs.bucket_name
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.cache_dir
+.. autoattribute:: awslambda.models.args.PythonHookArgs.cache_dir
   :noindex:
 
   If not provided, the cache directory is ``.runway/awslambda/pip_cache`` within the current working directory.
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.docker
+.. autoattribute:: awslambda.models.args.PythonHookArgs.docker
   :noindex:
 
   .. autoattribute:: awslambda.models.args.DockerOptions.disabled
@@ -56,28 +56,28 @@ When specifying the field, exclude the class name.
   .. autoattribute:: awslambda.models.args.DockerOptions.pull
     :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.extend_gitignore
+.. autoattribute:: awslambda.models.args.PythonHookArgs.extend_gitignore
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.extend_pip_args
+.. autoattribute:: awslambda.models.args.PythonHookArgs.extend_pip_args
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.object_prefix
+.. autoattribute:: awslambda.models.args.PythonHookArgs.object_prefix
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.runtime
+.. autoattribute:: awslambda.models.args.PythonHookArgs.runtime
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.source_code
+.. autoattribute:: awslambda.models.args.PythonHookArgs.source_code
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_cache
+.. autoattribute:: awslambda.models.args.PythonHookArgs.use_cache
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_pipenv
+.. autoattribute:: awslambda.models.args.PythonHookArgs.use_pipenv
   :noindex:
 
-.. autoattribute:: awslambda.models.args.PythonFunctionHookArgs.use_poetry
+.. autoattribute:: awslambda.models.args.PythonHookArgs.use_poetry
   :noindex:
 
 
