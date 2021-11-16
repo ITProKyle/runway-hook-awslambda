@@ -1,5 +1,5 @@
 """Response data models."""
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import Extra, Field
 from runway.utils import BaseModel
@@ -22,7 +22,35 @@ class AwsLambdaHookDeployResponse(BaseModel):
     code_sha256: str = Field(..., alias="CodeSha256")
     """SHA256 of the deployment package.
     This can be used by CloudFormation as the value of ``AWS::Lambda::Version.CodeSha256``.
-    (alias ``CodeSha256``)"""
+    (alias ``CodeSha256``)
+
+    """
+
+    compatible_architectures: Optional[List[str]] = Field(
+        None, alias="CompatibleArchitectures"
+    )
+    """A list of compatible instruction set architectures.
+    (https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html)
+    (alias ``CompatibleArchitectures``)
+
+    """
+
+    compatible_runtimes: Optional[List[str]] = Field(None, alias="CompatibleRuntimes")
+    """A list of compatible function runtimes.
+    Used for filtering with ``ListLayers`` and ``ListLayerVersions``.
+    (alias ``CompatibleRuntimes``)
+
+    """
+
+    license: Optional[str] = Field(None, alias="License")
+    """The layer's software license (alias ``License``). Can be any of the following:
+
+    - A SPDX license identifier (e.g. ``MIT``).
+    - The URL of a license hosted on the internet (e.g.
+      ``https://opensource.org/licenses/MIT``).
+    - The full text of the license.
+
+    """
 
     object_key: str = Field(..., alias="S3Key")
     """Key (file path) of the deployment package S3 Object. (alias ``S3Key``)"""
@@ -30,7 +58,9 @@ class AwsLambdaHookDeployResponse(BaseModel):
     object_version_id: Optional[str] = Field(None, alias="S3ObjectVersion")
     """The version ID of the deployment package S3 Object.
     This will only have a value if the S3 Bucket has versioning enabled.
-    (alias ``S3ObjectVersion``)"""
+    (alias ``S3ObjectVersion``)
+
+    """
 
     runtime: str = Field(..., alias="Runtime")
     """Runtime of the Lambda Function. (alias ``Runtime``)"""

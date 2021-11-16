@@ -410,6 +410,9 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
         return AwsLambdaHookDeployResponse(
             bucket_name=self.deployment_package.bucket.name,
             code_sha256=self.deployment_package.code_sha256,
+            compatible_architectures=self.deployment_package.compatible_architectures,
+            compatible_runtimes=self.deployment_package.compatible_runtimes,
+            license=self.deployment_package.license,
             object_key=self.deployment_package.object_key,
             object_version_id=self.deployment_package.object_version_id,
             runtime=self.deployment_package.runtime,
@@ -425,6 +428,9 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             return AwsLambdaHookDeployResponse(
                 bucket_name=self.deployment_package.bucket.name,
                 code_sha256=self.deployment_package.code_sha256,
+                compatible_architectures=self.deployment_package.compatible_architectures,
+                compatible_runtimes=self.deployment_package.compatible_runtimes,
+                license=self.deployment_package.license,
                 object_key=self.deployment_package.object_key,
                 object_version_id=self.deployment_package.object_version_id,
                 runtime=self.deployment_package.runtime,
@@ -433,6 +439,9 @@ class AwsLambdaHook(CfnginHookProtocol, Generic[_ProjectTypeVar]):
             return AwsLambdaHookDeployResponse(
                 bucket_name=self.deployment_package.bucket.name,
                 code_sha256="WILL CALCULATE WHEN BUILT",
+                compatible_architectures=self.deployment_package.compatible_architectures,
+                compatible_runtimes=self.deployment_package.compatible_runtimes,
+                license=self.deployment_package.license,
                 object_key=self.deployment_package.object_key,
                 object_version_id=self.deployment_package.object_version_id,
                 runtime=self.deployment_package.runtime,

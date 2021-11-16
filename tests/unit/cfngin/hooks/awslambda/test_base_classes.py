@@ -39,6 +39,9 @@ class TestAwsLambdaHook:
             Mock(
                 bucket=Mock(),
                 code_sha256="sha256",
+                compatible_architectures=None,
+                compatible_runtimes=None,
+                license="license",
                 object_key="key",
                 object_version_id="version",
                 runtime="runtime",
@@ -50,6 +53,7 @@ class TestAwsLambdaHook:
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
             code_sha256=deployment_package.code_sha256,  # type: ignore
+            license="license",
             object_key=deployment_package.object_key,  # type: ignore
             object_version_id=deployment_package.object_version_id,  # type: ignore
             runtime=deployment_package.runtime,  # type: ignore
@@ -67,6 +71,9 @@ class TestAwsLambdaHook:
             Mock(
                 bucket=Mock(),
                 code_sha256="sha256",
+                compatible_architectures=None,
+                compatible_runtimes=None,
+                license=None,
                 object_key="key",
                 object_version_id="version",
                 runtime="runtime",
