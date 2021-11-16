@@ -1,4 +1,5 @@
 .. _AWS::Lambda::Function.Code.S3Bucket: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-s3bucket
+.. _AWS::Lambda::LayerVersion.Content.S3Bucket: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-layerversion-content.html#cfn-lambda-layerversion-content-s3bucket
 
 ##################
 awslambda.S3Bucket
@@ -9,7 +10,7 @@ awslambda.S3Bucket
   :noindex:
 
 A string is returned by this lookup.
-The returned value can be passed directly to `AWS::Lambda::Function.Code.S3Bucket`_.
+The returned value can be passed directly to `AWS::Lambda::Function.Code.S3Bucket`_ or `AWS::Lambda::LayerVersion.Content.S3Bucket`_.
 
 
 .. rubric:: Example

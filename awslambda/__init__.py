@@ -1,7 +1,7 @@
 """AWS Lambda hooks."""
 import sys
 
-from ._python import PythonFunction
+from ._python import PythonFunction, PythonLayer
 
 if sys.version_info < (3, 8):  # cov: ignore
     # importlib.metadata is standard lib for python>=3.8, use backport
@@ -15,7 +15,7 @@ else:
         version,
     )
 
-__all__ = ["__version__", "PythonFunction"]
+__all__ = ["__version__", "PythonFunction", "PythonLayer"]
 
 try:  # cov: ignore
     __version__ = version(__name__)

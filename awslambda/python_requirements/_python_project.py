@@ -10,7 +10,7 @@ from typing_extensions import Literal
 
 from ..base_classes import Project
 from ..constants import BASE_WORK_DIR
-from ..models.args import PythonFunctionHookArgs
+from ..models.args import PythonHookArgs
 from ._python_docker import PythonDockerDependencyInstaller
 from .dependency_managers import (
     Pip,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(f"runway.{__name__}")
 
 
-class PythonProject(Project[PythonFunctionHookArgs]):
+class PythonProject(Project[PythonHookArgs]):
     """Python project."""
 
     DEFAULT_CACHE_DIR_NAME: ClassVar[str] = "pip_cache"

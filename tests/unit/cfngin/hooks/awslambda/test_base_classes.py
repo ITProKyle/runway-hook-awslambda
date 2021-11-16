@@ -1,5 +1,5 @@
 """Test runway.cfngin.hooks.awslambda.base_classes."""
-# pylint: disable=no-self-use,protected-access
+# pylint: disable=no-self-use,protected-access,unused-argument
 from __future__ import annotations
 
 import logging
@@ -9,13 +9,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from mock import Mock
 
-from awslambda.base_classes import (
-    AwsLambdaHook,
-    DependencyManager,
-    FunctionHook,
-    LayerHook,
-    Project,
-)
+from awslambda.base_classes import AwsLambdaHook, DependencyManager, Project
 from awslambda.exceptions import RuntimeMismatchError
 from awslambda.models.args import AwsLambdaHookArgs
 from awslambda.models.responses import AwsLambdaHookDeployResponse
@@ -45,6 +39,9 @@ class TestAwsLambdaHook:
             Mock(
                 bucket=Mock(),
                 code_sha256="sha256",
+                compatible_architectures=None,
+                compatible_runtimes=None,
+                license="license",
                 object_key="key",
                 object_version_id="version",
                 runtime="runtime",
@@ -56,6 +53,7 @@ class TestAwsLambdaHook:
         ) == AwsLambdaHookDeployResponse(
             bucket_name=deployment_package.bucket.name,
             code_sha256=deployment_package.code_sha256,  # type: ignore
+            license="license",
             object_key=deployment_package.object_key,  # type: ignore
             object_version_id=deployment_package.object_version_id,  # type: ignore
             runtime=deployment_package.runtime,  # type: ignore
@@ -73,6 +71,9 @@ class TestAwsLambdaHook:
             Mock(
                 bucket=Mock(),
                 code_sha256="sha256",
+                compatible_architectures=None,
+                compatible_runtimes=None,
+                license=None,
                 object_key="key",
                 object_version_id="version",
                 runtime="runtime",
@@ -182,34 +183,6 @@ class TestDependencyManager:
             assert DependencyManager(Mock(), tmp_path).version
 
 
-class TestFunctionHook:
-    """Test FunctionHook."""
-
-    def test_deployment_package(self, cfngin_context: CfnginContext) -> None:
-        """Test deployment_package."""
-        with pytest.raises(NotImplementedError):
-            assert FunctionHook(cfngin_context).deployment_package
-
-    def test_project(self, cfngin_context: CfnginContext) -> None:
-        """Test project."""
-        with pytest.raises(NotImplementedError):
-            assert FunctionHook(cfngin_context).project
-
-
-class TestLayerHook:
-    """Test LayerHook."""
-
-    def test_deployment_package(self, cfngin_context: CfnginContext) -> None:
-        """Test deployment_package."""
-        with pytest.raises(NotImplementedError):
-            assert LayerHook(cfngin_context).deployment_package
-
-    def test_project(self, cfngin_context: CfnginContext) -> None:
-        """Test project."""
-        with pytest.raises(NotImplementedError):
-            assert LayerHook(cfngin_context).project
-
-
 class TestProject:
     """Test Project."""
 
@@ -272,6 +245,41 @@ class TestProject:
         """Test cleanup. Should do nothing."""
         assert not Project(Mock(), Mock()).cleanup()
 
+    def test_compatible_architectures(self, tmp_path: Path) -> None:
+        """Test compatible_architectures."""
+        assert not Project(
+            AwsLambdaHookArgs(bucket_name="", runtime="test", source_code=tmp_path),
+            Mock(),
+        ).compatible_architectures
+        assert Project(
+            Mock(compatible_architectures=["foobar"]), Mock
+        ).compatible_architectures == ["foobar"]
+
+    def test_compatible_runtimes(self, mocker: MockerFixture, tmp_path: Path) -> None:
+        """Test compatible_runtimes."""
+        mocker.patch.object(Project, "runtime", "foobar")
+        assert not Project(
+            AwsLambdaHookArgs(bucket_name="", runtime="test", source_code=tmp_path),
+            Mock(),
+        ).compatible_runtimes
+        assert Project(
+            Mock(compatible_runtimes=["foobar"]), Mock()
+        ).compatible_runtimes == ["foobar"]
+
+    def test_compatible_runtimes_raise_value_error(
+        self, mocker: MockerFixture, tmp_path: Path
+    ) -> None:
+        """Test compatible_runtimes raise ValueError."""
+        mocker.patch.object(Project, "runtime", "foobar")
+        with pytest.raises(ValueError) as excinfo:
+            assert Project(
+                Mock(compatible_runtimes=["foo", "bar"]), Mock()
+            ).compatible_runtimes
+        assert (
+            str(excinfo.value)
+            == "runtime (foobar) not in compatible runtimes (foo, bar)"
+        )
+
     def test_dependency_directory(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test dependency_directory."""
         mocker.patch.object(Project, "build_directory", tmp_path)
@@ -285,6 +293,14 @@ class TestProject:
         """Test install_dependencies."""
         with pytest.raises(NotImplementedError):
             assert Project(Mock(), Mock()).install_dependencies()
+
+    def test_license(self, tmp_path: Path) -> None:
+        """Test license."""
+        assert not Project(
+            AwsLambdaHookArgs(bucket_name="", runtime="test", source_code=tmp_path),
+            Mock(),
+        ).license
+        assert Project(Mock(license="foobar"), Mock()).license == "foobar"
 
     def test_metadata_files(self) -> None:
         """Test metadata_files."""

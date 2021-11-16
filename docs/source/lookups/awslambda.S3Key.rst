@@ -1,4 +1,5 @@
 .. _AWS::Lambda::Function.Code.S3Key: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-s3key
+.. _AWS::Lambda::LayerVersion.Content.S3Key: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-layerversion-content.html#cfn-lambda-layerversion-content-s3key
 
 ###############
 awslambda.S3Key
@@ -9,7 +10,7 @@ awslambda.S3Key
   :noindex:
 
 A string is returned by this lookup.
-The returned value can be passed directly to `AWS::Lambda::Function.Code.S3Key`_.
+The returned value can be passed directly to `AWS::Lambda::Function.Code.S3Key`_ or `AWS::Lambda::LayerVersion.Content.S3Key`_.
 
 
 .. rubric:: Example

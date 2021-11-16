@@ -1,4 +1,5 @@
 .. _AWS::Lambda::Function.Code.S3ObjectVersion: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-s3objectversion
+.. _AWS::Lambda::LayerVersion.Content.S3ObjectVersion: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-layerversion-content.html#cfn-lambda-layerversion-content-s3objectversion
 
 #########################
 awslambda.S3ObjectVersion
@@ -9,7 +10,7 @@ awslambda.S3ObjectVersion
   :noindex:
 
 A string is returned by this lookup.
-The returned value can be passed directly to `AWS::Lambda::Function.Code.S3ObjectVersion`_.
+The returned value can be passed directly to `AWS::Lambda::Function.Code.S3ObjectVersion`_ or `AWS::Lambda::LayerVersion.Content.S3ObjectVersion`_.
 
 
 .. rubric:: Example

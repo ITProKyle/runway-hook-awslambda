@@ -9,6 +9,8 @@ from mock import Mock, call
 from awslambda.python_requirements._deployment_package import PythonDeploymentPackage
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_mock import MockerFixture
 
 MODULE = "awslambda.python_requirements._deployment_package"
@@ -32,4 +34,17 @@ class TestPythonDeploymentPackage:
                 call("**/*.dist-info*", project.dependency_directory),
                 call("**/*.py[c|o]", project.dependency_directory),
             ]
+        )
+
+    def test_insert_layer_dir(self, tmp_path: Path) -> None:
+        """Test insert_layer_dir."""
+        assert (
+            PythonDeploymentPackage.insert_layer_dir(tmp_path / "foo.txt", tmp_path)
+            == tmp_path / "python" / "foo.txt"
+        )
+        assert (
+            PythonDeploymentPackage.insert_layer_dir(
+                tmp_path / "bar" / "foo.txt", tmp_path
+            )
+            == tmp_path / "python" / "bar" / "foo.txt"
         )

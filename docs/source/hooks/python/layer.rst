@@ -1,8 +1,8 @@
-##############
-PythonFunction
-##############
+###########
+PythonLayer
+###########
 
-This hook creates deployment packages for Python Lambda Functions, uploads them to S3, and returns data about the deployment package.
+This hook creates deployment packages for Python Lambda Layers, uploads them to S3, and returns data about the deployment package.
 
 The return value can be retrieved using the :ref:`hook_data Lookup <hook_data lookup>` or by interacting with the :class:`~runway.context.CfnginContext` object passed to the |Blueprint|.
 
@@ -18,7 +18,6 @@ It also ensures that binary files built during the install process are compatibl
 
 .. contents:: Table of Contents
   :local:
-
 
 
 ****
@@ -37,6 +36,12 @@ When specifying the field, exclude the class name.
   :noindex:
 
   If not provided, the cache directory is ``.runway/awslambda/pip_cache`` within the current working directory.
+
+.. autoattribute:: awslambda.models.args.PythonHookArgs.compatible_architectures
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonHookArgs.compatible_runtimes
+  :noindex:
 
 .. autoattribute:: awslambda.models.args.PythonHookArgs.docker
   :noindex:
@@ -60,6 +65,9 @@ When specifying the field, exclude the class name.
   :noindex:
 
 .. autoattribute:: awslambda.models.args.PythonHookArgs.extend_pip_args
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonHookArgs.license
   :noindex:
 
 .. autoattribute:: awslambda.models.args.PythonHookArgs.object_prefix
@@ -115,10 +123,13 @@ Example
   src_path: ./
 
   pre_deploy:
-    - path: awslambda.PythonFunction
+    - path: awslambda.PythonLayer
       data_key: awslambda.example-function-no-docker
       args:
         bucket_name: ${bucket_name}
+        compatible_runtimes:
+          - python3.8
+          - python3.9
         docker:
           disabled: true
         extend_gitignore:
@@ -129,9 +140,9 @@ Example
         extend_pip_args:
           - '--proxy'
           - '[user:passwd@]proxy.server:port'
-        runtime: python3.9
+        runtime: python3.8
         source_code: ./src/example-function
-    - path: awslambda.PythonFunction
+    - path: awslambda.PythonLayer
       data_key: awslambda.example-function
       args:
         bucket_name: ${bucket_name}
@@ -149,7 +160,7 @@ Example
           - '[user:passwd@]proxy.server:port'
         runtime: python3.9
         source_code: ./src/example-function
-    - path: awslambda.PythonFunction
+    - path: awslambda.PythonLayer
       data_key: awslambda.xmlsec
       args:
         bucket_name: ${bucket_name}
@@ -169,8 +180,7 @@ Example
     - name: example-stack
       class_path: blueprints.ExampleBlueprint
       parameters:
-        XmlCodeSha256: ${awslambda.CodeSha256 awslambda.xmlsec}
-        XmlRuntime: ${awslambda.Runtime awslambda.xmlsec}
+        XmlCompatibleRuntimes: ${awslambda.CompatibleRuntimes awslambda.xmlsec}
         XmlS3Bucket: ${awslambda.S3Bucket awslambda.xmlsec}
         XmlS3Key: ${awslambda.S3Key awslambda.xmlsec}
     ...
