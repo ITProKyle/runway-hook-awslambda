@@ -106,17 +106,29 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
     bucket_name: str
     """Name of the S3 Bucket where deployment package is/will  be stored.
-    The Bucket must be in the same region the Lambda Function is being deployed in."""
+    The Bucket must be in the same region the Lambda Function is being deployed in.
+
+    """
 
     cache_dir: Optional[Path] = None
     """Explicitly define the directory location.
-    Must be an absolute path or it will be relative to the CFNgin module directory."""
+    Must be an absolute path or it will be relative to the CFNgin module directory.
+
+    """
 
     compatible_architectures: Optional[List[str]] = None
     """A list of compatible instruction set architectures.
     (https://docs.aws.amazon.com/lambda/latest/dg/foundation-arch.html)
 
-    **Only used for Lambda Layers.**
+    Only used by Lambda Layers.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          compatible_architectures:
+            - x86_64
+            - arm64
 
     """
 
@@ -124,7 +136,15 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """A list of compatible function runtimes.
     Used for filtering with ``ListLayers`` and ``ListLayerVersions``.
 
-    **Only used for Lambda Layers.**
+    Only used by Lambda Layers.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          compatible_runtimes:
+            - python3.8
+            - python3.9
 
     """
 
@@ -152,12 +172,18 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     license: Optional[str] = None
     """The layer's software license. Can be any of the following:
 
-    - A SPDX license identifier (e.g. ``MIT``).
+    - A SPDX license identifier (e.g. ``Apache-2.0``).
     - The URL of a license hosted on the internet (e.g.
-      ``https://opensource.org/licenses/MIT``).
+      ``https://opensource.org/licenses/Apache-2.0``).
     - The full text of the license.
 
-    **Only used for Lambda Layers.**
+    Only used by Lambda Layers.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          license: Apache-2.0
 
     """
 
@@ -166,7 +192,7 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
     The object will always be prefixed with ``awslambda/functions``.
     If provided, the value will be added to the end of the static prefix
-    (e.g. ``awslambda/functions/<object_prefix>/<file-name>``).
+    (e.g. ``awslambda/<functions|layers>/<object_prefix>/<file name>``).
 
     """
 
@@ -188,7 +214,15 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     """
 
     source_code: DirectoryPath
-    """Path to the Lambda Function source code."""
+    """Path to the Lambda Function source code.
+
+    .. rubric:: Example
+    .. code-block:: yaml
+
+        args:
+          source_code: ./my/package
+
+    """
 
     use_cache: bool = True
     """Whether to use a cache directory with pip that will persist builds (default ``True``)."""
