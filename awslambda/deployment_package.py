@@ -345,12 +345,12 @@ class DeploymentPackage(DelCachedPropMixin, Generic[_ProjectTypeVar]):
 
         """
         optional_metadata = {
-            self.META_TAGS["compatible_architectures"]: ", ".join(
+            self.META_TAGS["compatible_architectures"]: "+".join(
                 self.project.compatible_architectures
             )
             if self.project.compatible_architectures
             else None,
-            self.META_TAGS["compatible_runtimes"]: ", ".join(
+            self.META_TAGS["compatible_runtimes"]: "+".join(
                 self.project.compatible_runtimes
             )
             if self.project.compatible_runtimes
@@ -511,7 +511,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
         """List of compatible instruction set architectures."""
         if self.META_TAGS["compatible_architectures"] in self.object_tags:
             return self.object_tags[self.META_TAGS["compatible_architectures"]].split(
-                ", "
+                "+"
             )
         return None
 
@@ -519,7 +519,7 @@ class DeploymentPackageS3Object(DeploymentPackage[_ProjectTypeVar]):
     def compatible_runtimes(self) -> Optional[List[str]]:
         """List of compatible runtimes."""
         if self.META_TAGS["compatible_runtimes"] in self.object_tags:
-            return self.object_tags[self.META_TAGS["compatible_runtimes"]].split(", ")
+            return self.object_tags[self.META_TAGS["compatible_runtimes"]].split("+")
         return None
 
     @cached_property

@@ -37,13 +37,25 @@ else:
 __all__ = ["__version__", "AwsLambdaLookup"]
 
 # quick way to register everything with one line in the CFNgin config file
-register_lookup_handler(AwsLambdaLookup.Code.NAME, AwsLambdaLookup.Code)
-register_lookup_handler(AwsLambdaLookup.CodeSha256.NAME, AwsLambdaLookup.CodeSha256)
-register_lookup_handler(AwsLambdaLookup.Runtime.NAME, AwsLambdaLookup.Runtime)
-register_lookup_handler(AwsLambdaLookup.S3Bucket.NAME, AwsLambdaLookup.S3Bucket)
-register_lookup_handler(AwsLambdaLookup.S3Key.NAME, AwsLambdaLookup.S3Key)
+register_lookup_handler(AwsLambdaLookup.Code.TYPE_NAME, AwsLambdaLookup.Code)
 register_lookup_handler(
-    AwsLambdaLookup.S3ObjectVersion.NAME, AwsLambdaLookup.S3ObjectVersion
+    AwsLambdaLookup.CodeSha256.TYPE_NAME, AwsLambdaLookup.CodeSha256
+)
+register_lookup_handler(
+    AwsLambdaLookup.CompatibleArchitectures.TYPE_NAME,
+    AwsLambdaLookup.CompatibleArchitectures,
+)
+register_lookup_handler(
+    AwsLambdaLookup.CompatibleRuntimes.TYPE_NAME, AwsLambdaLookup.CompatibleRuntimes
+)
+register_lookup_handler(
+    AwsLambdaLookup.LicenseInfo.TYPE_NAME, AwsLambdaLookup.LicenseInfo
+)
+register_lookup_handler(AwsLambdaLookup.Runtime.TYPE_NAME, AwsLambdaLookup.Runtime)
+register_lookup_handler(AwsLambdaLookup.S3Bucket.TYPE_NAME, AwsLambdaLookup.S3Bucket)
+register_lookup_handler(AwsLambdaLookup.S3Key.TYPE_NAME, AwsLambdaLookup.S3Key)
+register_lookup_handler(
+    AwsLambdaLookup.S3ObjectVersion.TYPE_NAME, AwsLambdaLookup.S3ObjectVersion
 )
 
 try:  # cov: ignore

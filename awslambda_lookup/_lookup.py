@@ -27,7 +27,7 @@ to the lookup as it's input/query. This allows the lookup to function during a
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Final, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Final, List, Optional, Union, cast
 
 from pydantic import ValidationError
 from runway.context import RunwayContext
@@ -52,7 +52,7 @@ LOGGER = logging.getLogger(f"runway.{__name__}")
 class AwsLambdaLookup(LookupHandler):
     """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-    NAME: Final[Literal["awslambda"]] = "awslambda"
+    TYPE_NAME: Final[Literal["awslambda"]] = "awslambda"
 
     @classmethod
     def get_deployment_package_data(
@@ -143,7 +143,7 @@ class AwsLambdaLookup(LookupHandler):
         # checks for RunwayContext to allow mocks to pass
         if isinstance(context, RunwayContext):
             raise CfnginOnlyLookupError(  # TODO make this an exception in the runway repo
-                cls.NAME
+                cls.TYPE_NAME
             )
         query, _ = cls.parse(value)
         return cls.get_deployment_package_data(context, query)
@@ -177,7 +177,7 @@ class AwsLambdaLookup(LookupHandler):
     class Code(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.Code"]] = "awslambda.Code"
+        TYPE_NAME: Final[Literal["awslambda.Code"]] = "awslambda.Code"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -201,15 +201,15 @@ class AwsLambdaLookup(LookupHandler):
             return Code(
                 **AwsLambdaLookup.handle(value, context, *args, **kwargs).dict(
                     by_alias=True,
-                    exclude={"CodeSha256", "Runtime", "code_sha256", "runtime"},
                     exclude_none=True,
+                    include={"bucket_name", "object_key", "object_version_id"},
                 )
             )
 
     class CodeSha256(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.CodeSha256"]] = "awslambda.CodeSha256"
+        TYPE_NAME: Final[Literal["awslambda.CodeSha256"]] = "awslambda.CodeSha256"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -232,10 +232,108 @@ class AwsLambdaLookup(LookupHandler):
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).code_sha256
 
+    class CompatibleArchitectures(LookupHandler):
+        """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
+
+        TYPE_NAME: Final[
+            Literal["awslambda.CompatibleArchitectures"]
+        ] = "awslambda.CompatibleArchitectures"
+
+        @classmethod
+        def handle(  # pylint: disable=arguments-differ
+            cls,
+            value: str,
+            context: Union[CfnginContext, RunwayContext],
+            *args: Any,
+            **kwargs: Any,
+        ) -> Optional[List[str]]:
+            """Retrieve metadata for an AWS Lambda deployment package.
+
+            Args:
+                value: Value to resolve.
+                context: The current context object.
+
+            Returns:
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::LayerVersion.CompatibleArchitectures``.
+
+            """
+            _query, lookup_args = cls.parse(value)
+            return cls.format_results(
+                AwsLambdaLookup.handle(
+                    value, context, *args, **kwargs
+                ).compatible_architectures,
+                **lookup_args,
+            )
+
+    class CompatibleRuntimes(LookupHandler):
+        """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
+
+        TYPE_NAME: Final[
+            Literal["awslambda.CompatibleRuntimes"]
+        ] = "awslambda.CompatibleRuntimes"
+
+        @classmethod
+        def handle(  # pylint: disable=arguments-differ
+            cls,
+            value: str,
+            context: Union[CfnginContext, RunwayContext],
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
+            """Retrieve metadata for an AWS Lambda deployment package.
+
+            Args:
+                value: Value to resolve.
+                context: The current context object.
+
+            Returns:
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::LayerVersion.CompatibleRuntimes``.
+
+            """
+            _query, lookup_args = cls.parse(value)
+            return cls.format_results(
+                AwsLambdaLookup.handle(
+                    value, context, *args, **kwargs
+                ).compatible_runtimes,
+                **lookup_args,
+            )
+
+    class LicenseInfo(LookupHandler):
+        """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
+
+        TYPE_NAME: Final[Literal["awslambda.LicenseInfo"]] = "awslambda.LicenseInfo"
+
+        @classmethod
+        def handle(  # pylint: disable=arguments-differ
+            cls,
+            value: str,
+            context: Union[CfnginContext, RunwayContext],
+            *args: Any,
+            **kwargs: Any,
+        ) -> Optional[str]:
+            """Retrieve metadata for an AWS Lambda deployment package.
+
+            Args:
+                value: Value to resolve.
+                context: The current context object.
+
+            Returns:
+                Value that can be passed into CloudFormation property
+                ``AWS::Lambda::LayerVersion.LicenseInfo``.
+
+            """
+            _query, lookup_args = cls.parse(value)
+            return cls.format_results(
+                AwsLambdaLookup.handle(value, context, *args, **kwargs).license,
+                **lookup_args,
+            )
+
     class Runtime(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.Runtime"]] = "awslambda.Runtime"
+        TYPE_NAME: Final[Literal["awslambda.Runtime"]] = "awslambda.Runtime"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -261,7 +359,7 @@ class AwsLambdaLookup(LookupHandler):
     class S3Bucket(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.S3Bucket"]] = "awslambda.S3Bucket"
+        TYPE_NAME: Final[Literal["awslambda.S3Bucket"]] = "awslambda.S3Bucket"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -279,7 +377,8 @@ class AwsLambdaLookup(LookupHandler):
 
             Returns:
                 Value that can be passed into CloudFormation property
-                ``AWS::Lambda::Function.Code.S3Bucket``.
+                ``AWS::Lambda::Function.Code.S3Bucket`` or
+                ``AWS::Lambda::LayerVersion.Content.S3Bucket``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).bucket_name
@@ -287,7 +386,7 @@ class AwsLambdaLookup(LookupHandler):
     class S3Key(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.S3Key"]] = "awslambda.S3Key"
+        TYPE_NAME: Final[Literal["awslambda.S3Key"]] = "awslambda.S3Key"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -305,7 +404,8 @@ class AwsLambdaLookup(LookupHandler):
 
             Returns:
                 Value that can be passed into CloudFormation property
-                ``AWS::Lambda::Function.Code.S3Key``.
+                ``AWS::Lambda::Function.Code.S3Key`` or
+                ``AWS::Lambda::LayerVersion.Content.S3Key``.
 
             """
             return AwsLambdaLookup.handle(value, context, *args, **kwargs).object_key
@@ -313,7 +413,9 @@ class AwsLambdaLookup(LookupHandler):
     class S3ObjectVersion(LookupHandler):
         """Lookup for :class:`~awslambda.base_classes.AwsLambdaHook` responses."""
 
-        NAME: Final[Literal["awslambda.S3ObjectVersion"]] = "awslambda.S3ObjectVersion"
+        TYPE_NAME: Final[
+            Literal["awslambda.S3ObjectVersion"]
+        ] = "awslambda.S3ObjectVersion"
 
         @classmethod
         def handle(  # pylint: disable=arguments-differ
@@ -331,12 +433,10 @@ class AwsLambdaLookup(LookupHandler):
 
             Returns:
                 Value that can be passed into CloudFormation property
-                ``AWS::Lambda::Function.Code.S3ObjectVersion``.
+                ``AWS::Lambda::Function.Code.S3ObjectVersion`` or
+                ``AWS::Lambda::LayerVersion.Content.S3ObjectVersion``.
 
             """
             return AwsLambdaLookup.handle(
                 value, context, *args, **kwargs
             ).object_version_id
-
-
-TYPE_NAME = AwsLambdaLookup.NAME
