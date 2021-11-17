@@ -157,6 +157,8 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     This can be used with or without an existing file.
     Files that match a gitignore rule will not be included in the deployment package.
 
+    ``.git/`` & ``.gitignore`` will always be added.
+
     .. rubric:: Example
     .. code-block:: yaml
 
