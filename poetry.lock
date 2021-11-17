@@ -822,7 +822,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "igittigitt"
-version = "2.0.4"
+version = "2.0.5"
 description = "A spec-compliant gitignore parser for Python"
 category = "main"
 optional = false
@@ -2080,12 +2080,8 @@ idna = [
     {file = "idna-3.2.tar.gz", hash = "sha256:467fbad99067910785144ce333826c71fb0e63a425657295239737f7ecd125f3"},
 ]
 igittigitt = [
-    {file = "igittigitt-2.0.4-py3-none-any.whl", hash = "sha256:67e6486f0f22e8d1d2a3774cf03931dd4eecba67b6a56b3f27b73f538cc9ecdf"},
-    {file = "igittigitt-2.0.4-py3.6.egg", hash = "sha256:fcde0492613cefaa70fa443f6541866ab88e93a4a28e65119c126d605acab15d"},
-    {file = "igittigitt-2.0.4-py3.7.egg", hash = "sha256:d606ebf81bc32ca5a8c6f0127347d24ca08fceee00a0ae8373700b419dc31c51"},
-    {file = "igittigitt-2.0.4-py3.8.egg", hash = "sha256:7b15ece36bcaadcf14c9b171c90a878f2d3286403f7c91d292fafea44ce1cb5e"},
-    {file = "igittigitt-2.0.4-py3.9.egg", hash = "sha256:94357d860e86927e1d9c78915092031e539447218c9ea3681a8ef51878fadd0a"},
-    {file = "igittigitt-2.0.4.tar.gz", hash = "sha256:7052fabd291874a43c89bd3a14e38e3d9b07424b47dffcc060bcf0d629627b5e"},
+    {file = "igittigitt-2.0.5-py3-none-any.whl", hash = "sha256:3321f781547d9b6f7a4245a091625f8cc6b9d67626e091b338ac9f30a731a475"},
+    {file = "igittigitt-2.0.5.tar.gz", hash = "sha256:4f3f2dbfd7e03bfd574fbd88f15c064bddfe1c8b169b7c919851a5cc6ff37815"},
 ]
 imagesize = [
     {file = "imagesize-1.2.0-py2.py3-none-any.whl", hash = "sha256:6965f19a6a2039c7d48bca7dba2473069ff854c36ae6f19d2cde309d998228a1"},
