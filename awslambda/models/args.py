@@ -159,6 +159,8 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
 
     ``.git/`` & ``.gitignore`` will always be added.
 
+    .. important:: This only applies to files in the ``source_code`` directory.
+
     .. rubric:: Example
     .. code-block:: yaml
 
@@ -212,6 +214,13 @@ class AwsLambdaHookArgs(HookArgsBaseModel):
     If the defined or detected runtime ever changes so that it no longer
     matches the deployment package in S3, the deployment package in S3 will be
     deleted and a new one will be built and uploaded.
+
+    """
+
+    slim: bool = True
+    """Automatically remove information and caches from dependencies (default ``True``).
+    This is done by applying gitignore rules to the dependencies.
+    These rules vary by language/runtime.
 
     """
 
@@ -276,6 +285,25 @@ class PythonHookArgs(AwsLambdaHookArgs):
           extend_pip_args:
             - '--proxy'
             - '[user:passwd@]proxy.server:port'
+
+    """
+
+    slim: bool = True
+    """Automatically remove information and caches from dependencies (default ``True``).
+    This is done by applying the following gitignore rules to the dependencies:
+
+    - ``**/*.dist-info*``
+    - ``**/*.py[c|d|i|o]``
+    - ``**/*.so``
+    - ``**/__pycache__*``
+
+    """
+
+    strip: bool = True
+    """Whether or not to strip binary files from the dependencies (default ``True``).
+    This only takes effect if ``slim: true``.
+
+    If false, the gitignore rule ``**/*.so`` is not used.
 
     """
 

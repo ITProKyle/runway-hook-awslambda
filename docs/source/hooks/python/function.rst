@@ -68,7 +68,13 @@ When specifying the field, exclude the class name.
 .. autoattribute:: awslambda.models.args.PythonHookArgs.runtime
   :noindex:
 
+.. autoattribute:: awslambda.models.args.PythonHookArgs.slim
+  :noindex:
+
 .. autoattribute:: awslambda.models.args.PythonHookArgs.source_code
+  :noindex:
+
+.. autoattribute:: awslambda.models.args.PythonHookArgs.strip
   :noindex:
 
 .. autoattribute:: awslambda.models.args.PythonHookArgs.use_cache
@@ -130,6 +136,7 @@ Example
           - '--proxy'
           - '[user:passwd@]proxy.server:port'
         runtime: python3.9
+        slim: false
         source_code: ./src/example-function
     - path: awslambda.PythonFunction
       data_key: awslambda.example-function
@@ -164,6 +171,7 @@ Example
           - '*.toml'
           - tests/
         source_code: ./src/xmlsec-function
+        strip: false
 
   stacks:
     - name: example-stack
