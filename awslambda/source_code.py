@@ -74,10 +74,6 @@ class SourceCode:
             self.gitignore_filter.parse_rule_files(self.root_directory)
             self.gitignore_filter.add_rule(".git/", self.root_directory)
             self.gitignore_filter.add_rule(".gitignore", self.root_directory)
-            # TODO remove once fixed in lib
-            self.gitignore_filter.add_rule(  # fix incorrectly handled synlinks
-                "**/bin/python*", "/"
-            )
 
     @cached_property
     def md5_hash(self) -> str:

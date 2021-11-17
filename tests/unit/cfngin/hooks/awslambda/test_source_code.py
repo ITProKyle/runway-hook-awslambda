@@ -47,11 +47,7 @@ class TestSourceCode:
         assert obj.root_directory == tmp_path
         gitignore_filter.parse_rule_files.assert_called_once_with(tmp_path)
         gitignore_filter.add_rule.assert_has_calls(
-            [
-                call(".git/", tmp_path),
-                call(".gitignore", tmp_path),
-                call("**/bin/python*", "/"),
-            ]
+            [call(".git/", tmp_path), call(".gitignore", tmp_path)]
         )
 
     def test___init___gitignore_filter_provided(self, tmp_path: Path) -> None:
