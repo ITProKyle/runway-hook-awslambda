@@ -822,7 +822,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "igittigitt"
-version = "2.0.5"
+version = "2.1.0"
 description = "A spec-compliant gitignore parser for Python"
 category = "main"
 optional = false
@@ -832,6 +832,7 @@ python-versions = ">=3.6.0"
 attrs = "*"
 cli-exit-tools = "*"
 click = "*"
+lib-detect-testenv = "*"
 wcmatch = "*"
 
 [[package]]
@@ -952,6 +953,18 @@ description = "A fast and thorough lazy object proxy."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+
+[[package]]
+name = "lib-detect-testenv"
+version = "1.0.1"
+description = "detects if pytest or doctest or pyrunner on pycharm is running"
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+
+[package.dependencies]
+cli-exit-tools = "*"
+click = "*"
 
 [[package]]
 name = "markupsafe"
@@ -2080,8 +2093,8 @@ idna = [
     {file = "idna-3.2.tar.gz", hash = "sha256:467fbad99067910785144ce333826c71fb0e63a425657295239737f7ecd125f3"},
 ]
 igittigitt = [
-    {file = "igittigitt-2.0.5-py3-none-any.whl", hash = "sha256:3321f781547d9b6f7a4245a091625f8cc6b9d67626e091b338ac9f30a731a475"},
-    {file = "igittigitt-2.0.5.tar.gz", hash = "sha256:4f3f2dbfd7e03bfd574fbd88f15c064bddfe1c8b169b7c919851a5cc6ff37815"},
+    {file = "igittigitt-2.1.0-py3-none-any.whl", hash = "sha256:35537c77d6c4fb724d896300b27cd9ef5e31cf5b169e7ed766f10be8f9b55850"},
+    {file = "igittigitt-2.1.0.tar.gz", hash = "sha256:f0caa68d67b0424935ed99d8ece0946514613db060d716487b47cf9e1e8869d5"},
 ]
 imagesize = [
     {file = "imagesize-1.2.0-py2.py3-none-any.whl", hash = "sha256:6965f19a6a2039c7d48bca7dba2473069ff854c36ae6f19d2cde309d998228a1"},
@@ -2144,6 +2157,15 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.6.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:9698110e36e2df951c7c36b6729e96429c9c32b3331989ef19976592c5f3c77a"},
     {file = "lazy_object_proxy-1.6.0-cp39-cp39-win32.whl", hash = "sha256:1fee665d2638491f4d6e55bd483e15ef21f6c8c2095f235fef72601021e64f61"},
     {file = "lazy_object_proxy-1.6.0-cp39-cp39-win_amd64.whl", hash = "sha256:f5144c75445ae3ca2057faac03fda5a902eff196702b0a24daf1d6ce0650514b"},
+]
+lib-detect-testenv = [
+    {file = "lib_detect_testenv-1.0.1-py3-none-any.whl", hash = "sha256:4582f7203884e0d934d0aeedd2addb08a53dadc67f69b3d5bc2edc3138f8d073"},
+    {file = "lib_detect_testenv-1.0.1-py3.10.egg", hash = "sha256:9472252df022ba04cec1d6abcb2ad9186bc040b0ea7f8cfa846e315d7fab87e2"},
+    {file = "lib_detect_testenv-1.0.1-py3.6.egg", hash = "sha256:b6499258634513b879f522a43ebd015d3220805ed10dff7e9221df39cd5d75a5"},
+    {file = "lib_detect_testenv-1.0.1-py3.7.egg", hash = "sha256:c522de9f3472cf30450ae82b8c3806b0827601e8ff1629fadc0aae2c0d703e94"},
+    {file = "lib_detect_testenv-1.0.1-py3.8.egg", hash = "sha256:2a5c72d2570275f05d86d5c7c72d724b76c197f899480c2c9a5d18a261c29927"},
+    {file = "lib_detect_testenv-1.0.1-py3.9.egg", hash = "sha256:a56fdd0e6aa0ea42248924f1189df26c1bb56be377d1deecdda56a8eed0e77ca"},
+    {file = "lib_detect_testenv-1.0.1.tar.gz", hash = "sha256:4d8bb85032934dad94cd2c123478883655a55fc9e82e0ef92ca181eab4c89c9d"},
 ]
 markupsafe = [
     {file = "MarkupSafe-2.0.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d8446c54dc28c01e5a2dbac5a25f071f6653e6e40f3a8818e8b45d790fe6ef53"},
